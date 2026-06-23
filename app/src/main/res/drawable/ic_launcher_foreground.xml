@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Простой щит — плейсхолдер бренда SAPN. -->
+    <path
+        android:fillColor="#3D7BFF"
+        android:pathData="M54,30 L72,38 L72,56 C72,68 64,76 54,80 C44,76 36,68 36,56 L36,38 Z" />
+</vector>

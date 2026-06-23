@@ -1,0 +1,28 @@
+# Android / Gradle
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# App build output
+/app/build/
+**/build/
+
+# Keystores / secrets — НИКОГДА не коммитим
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+*.env
+
+# Бинарный VPN-движок (AAR) — подкладывается локально, не в репозиторий
+/app/libs/*.aar
+
+# Logs
+*.log
