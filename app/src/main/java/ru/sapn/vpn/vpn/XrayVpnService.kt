@@ -139,7 +139,7 @@ class XrayVpnService : VpnService() {
         return Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText("VPN активен")
-            .setSmallIcon(android.R.drawable.stat_sys_vpn_ic)
+            .setSmallIcon(R.drawable.ic_tile_vpn)
             .setOngoing(true)
             .build()
     }
