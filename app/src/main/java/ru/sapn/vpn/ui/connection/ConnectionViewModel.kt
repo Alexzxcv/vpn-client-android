@@ -13,10 +13,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import ru.sapn.vpn.BuildConfig
 import ru.sapn.vpn.domain.model.Location
 import ru.sapn.vpn.domain.model.Subscription
 import ru.sapn.vpn.domain.model.VlessConfig
 import ru.sapn.vpn.domain.repository.VpnRepository
+import ru.sapn.vpn.domain.update.AppUpdate
+import ru.sapn.vpn.domain.update.UpdateRepository
 import ru.sapn.vpn.domain.vpn.VpnState
 import ru.sapn.vpn.vpn.VpnController
 import java.time.Instant
@@ -42,16 +45,43 @@ data class ConnectionUiState(
 class ConnectionViewModel(
     app: Application,
     private val vpnRepository: VpnRepository,
+    private val updateRepository: UpdateRepository,
 ) : AndroidViewModel(app) {
 
     private val _ui = MutableStateFlow(ConnectionUiState())
     val ui: StateFlow<ConnectionUiState> = _ui.asStateFlow()
+
+    /** Доступное обновление (null — нечего показывать). */
+    private val _update = MutableStateFlow<AppUpdate?>(null)
+    val update: StateFlow<AppUpdate?> = _update.asStateFlow()
 
     val vpnState: StateFlow<VpnState> = VpnController.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VpnState.DISCONNECTED)
 
     /** Корутина авто-рефреша конфига (перезапускается при каждом успешном fetch). */
     private var refreshJob: Job? = null
+
+    /** Момент последней проверки обновлений (троттлинг, чтобы не дёргать GitHub). */
+    private var lastUpdateCheckMs = 0L
+
+    /**
+     * Проверка обновлений: не чаще раза в [UPDATE_CHECK_INTERVAL_MS]. Любые ошибки
+     * репозиторий проглатывает (success(null)), так что баннер просто не появится.
+     */
+    fun checkForUpdate() {
+        val now = System.currentTimeMillis()
+        if (_update.value == null && now - lastUpdateCheckMs < UPDATE_CHECK_INTERVAL_MS) return
+        lastUpdateCheckMs = now
+        viewModelScope.launch {
+            updateRepository.checkForUpdate(BuildConfig.VERSION_NAME)
+                .onSuccess { _update.value = it }
+        }
+    }
+
+    /** Скрыть баннер обновления (до следующего запуска/проверки). */
+    fun dismissUpdate() {
+        _update.value = null
+    }
 
     fun load() {
         viewModelScope.launch {
@@ -168,14 +198,18 @@ class ConnectionViewModel(
     private companion object {
         /** Авто-рефреш, когда до истечения остаётся менее 12ч. */
         const val REFRESH_LEAD_SECONDS = 12L * 60L * 60L
+
+        /** Минимальный интервал между проверками обновлений — 6 часов. */
+        const val UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
     }
 
     class Factory(
         private val app: Application,
         private val vpnRepository: VpnRepository,
+        private val updateRepository: UpdateRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            ConnectionViewModel(app, vpnRepository) as T
+            ConnectionViewModel(app, vpnRepository, updateRepository) as T
     }
 }

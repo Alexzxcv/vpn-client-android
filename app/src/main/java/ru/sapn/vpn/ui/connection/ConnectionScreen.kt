@@ -2,6 +2,7 @@ package ru.sapn.vpn.ui.connection
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,10 +19,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,9 +44,13 @@ fun ConnectionScreen(
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
     val vpnState by viewModel.vpnState.collectAsStateWithLifecycle()
+    val update by viewModel.update.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) {
+        viewModel.load()
+        viewModel.checkForUpdate()
+    }
 
     // Системный диалог разрешения VPN.
     val vpnPermLauncher = rememberLauncherForActivityResult(
@@ -91,6 +98,43 @@ fun ConnectionScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+
+        // Баннер обновления (не блокирует работу — просто карточка сверху).
+        update?.let { upd ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "Доступно обновление v${upd.versionName}",
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = { viewModel.dismissUpdate() }) {
+                            Text("Позже")
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(onClick = {
+                            // MVP: открываем .apk в браузере — пользователь скачает и поставит.
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(upd.apkUrl))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            runCatching { context.startActivity(intent) }
+                        }) {
+                            Text("Обновить")
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
 
         // Подписка.
         Card(modifier = Modifier.fillMaxWidth()) {

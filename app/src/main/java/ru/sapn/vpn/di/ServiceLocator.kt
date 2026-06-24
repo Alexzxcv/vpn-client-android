@@ -14,10 +14,12 @@ import ru.sapn.vpn.data.remote.AuthInterceptor
 import ru.sapn.vpn.data.remote.VpnApi
 import ru.sapn.vpn.data.repository.AccountRepositoryImpl
 import ru.sapn.vpn.data.repository.AuthRepositoryImpl
+import ru.sapn.vpn.data.repository.UpdateRepositoryImpl
 import ru.sapn.vpn.data.repository.VpnRepositoryImpl
 import ru.sapn.vpn.domain.repository.AccountRepository
 import ru.sapn.vpn.domain.repository.AuthRepository
 import ru.sapn.vpn.domain.repository.VpnRepository
+import ru.sapn.vpn.domain.update.UpdateRepository
 
 /**
  * Простой Service Locator вместо тяжёлого DI-фреймворка — достаточно для скелета.
@@ -56,7 +58,11 @@ class AppContainer(context: Context) {
         .build()
         .create(VpnApi::class.java)
 
+    // Отдельный клиент для GitHub: другой хост, без нашего Bearer-токена.
+    private val plainHttp: OkHttpClient = OkHttpClient.Builder().build()
+
     val authRepository: AuthRepository = AuthRepositoryImpl(api, tokenStore)
     val accountRepository: AccountRepository = AccountRepositoryImpl(api)
     val vpnRepository: VpnRepository = VpnRepositoryImpl(api, deviceIdentity, tokenStore)
+    val updateRepository: UpdateRepository = UpdateRepositoryImpl(plainHttp, json)
 }

@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Подпись релиза из секретов CI. Если переменных окружения нет (локальная
+// сборка / первый запуск без секретов) — signingConfig не настраивается и
+// release собирается без подписи (CI в этом случае публикует debug-APK).
+val keystoreBase64: String? = System.getenv("KEYSTORE_BASE64")
+val hasReleaseSigning = !keystoreBase64.isNullOrBlank()
+
 android {
     namespace = "ru.sapn.vpn"
     compileSdk = 35
@@ -21,6 +27,18 @@ android {
         buildConfigField("String", "API_BASE_URL", "\"https://bot.niffty.ru/api/\"")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                // Keystore приходит из CI как base64 и декодируется в файл до сборки.
+                storeFile = rootProject.file("release.keystore")
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -34,6 +52,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val connectionViewModel: ConnectionViewModel by viewModels {
-        ConnectionViewModel.Factory(application, container.vpnRepository)
+        ConnectionViewModel.Factory(application, container.vpnRepository, container.updateRepository)
     }
 
     private val accountViewModel: AccountViewModel by viewModels {
