@@ -24,7 +24,14 @@ fun DeviceResponse.toDomain() = Device(
 )
 
 fun SubscriptionResponse.toDomain() =
-    Subscription(plan = plan, active = active, expiresAt = expiresAt)
+    Subscription(
+        plan = plan,
+        active = status.equals("active", ignoreCase = true),
+        deviceLimit = deviceLimit,
+        trafficLimitBytes = trafficLimitBytes,
+        trafficUsedBytes = trafficUsedBytes,
+        expiresAt = expiresAt,
+    )
 
 fun LocationResponse.toDomain() =
     Location(id = id, name = name, location = location)

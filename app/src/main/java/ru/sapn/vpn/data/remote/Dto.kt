@@ -49,7 +49,11 @@ data class ChangePasswordRequest(
 @Serializable
 data class SubscriptionResponse(
     val plan: String,
-    val active: Boolean = false,
+    // Бэкенд отдаёт статус строкой ("active"/"inactive"), а не булевым полем.
+    val status: String = "inactive",
+    @SerialName("device_limit") val deviceLimit: Int = 0,
+    @SerialName("traffic_limit_bytes") val trafficLimitBytes: Long = 0,
+    @SerialName("traffic_used_bytes") val trafficUsedBytes: Long = 0,
     @SerialName("expires_at") val expiresAt: String? = null,
 )
 

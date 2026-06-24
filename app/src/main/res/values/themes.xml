@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Базовая тема. Реальная палитра задаётся в Compose (ui/theme). -->
-    <style name="Theme.SapnVpn" parent="android:Theme.Material.NoActionBar" />
+    <!-- Базовая тема. Реальная палитра задаётся в Compose (ui/theme).
+         windowBackground = void, чтобы не было белой вспышки до первого кадра Compose. -->
+    <style name="Theme.SapnVpn" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/sapn_void</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>

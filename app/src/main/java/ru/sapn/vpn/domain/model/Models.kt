@@ -22,6 +22,9 @@ data class Device(
 data class Subscription(
     val plan: String,
     val active: Boolean,
+    val deviceLimit: Int,
+    val trafficLimitBytes: Long,
+    val trafficUsedBytes: Long,
     val expiresAt: String?,
 )
 
