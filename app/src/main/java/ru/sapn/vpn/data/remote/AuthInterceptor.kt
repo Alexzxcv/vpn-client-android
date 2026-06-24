@@ -10,7 +10,7 @@ import okhttp3.Response
 import ru.sapn.vpn.data.local.TokenStore
 
 /**
- * Подставляет `Authorization: Bearer <access>` ко всем запросам, кроме auth/*.
+ * Подставляет `Authorization: Bearer <access>` ко всем запросам, кроме auth-эндпоинтов.
  * При 401 пытается один раз обновить токен через /auth/refresh и повторить запрос.
  * Если refresh не удался — чистит токены (пользователя выкинет на экран логина).
  *
