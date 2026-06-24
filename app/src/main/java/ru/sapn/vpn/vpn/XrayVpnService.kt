@@ -22,13 +22,16 @@ import ru.sapn.vpn.domain.vpn.VpnState
  *  2. Сервис строит tun ([buildTun]) и отдаёт дескриптор движку [VpnEngine].
  *  3. ACTION_DISCONNECT / onDestroy останавливают движок и закрывают tun.
  *
- * Реальную маршрутизацию трафика делает бинарный движок (см. [StubVpnEngine]).
- * Сейчас движок — заглушка: tun поднимается, но трафик не заворачивается.
+ * Реальную маршрутизацию трафика делает бинарный движок [XrayCoreVpnEngine]
+ * (sing-box/libbox). Без подключённого AAR движок — заглушка: tun поднимается,
+ * но трафик не заворачивается.
  */
 class XrayVpnService : VpnService() {
 
     // TODO(di): когда появится DI, инжектить реальный VpnEngine.
-    private val engine: VpnEngine = XrayCoreVpnEngine()
+    // Движку передаём сам VpnService: libbox через него делает protect() и строит
+    // свой tun (PlatformInterface). В fallback-режиме это не используется.
+    private val engine: VpnEngine = XrayCoreVpnEngine(service = this)
 
     private var tun: ParcelFileDescriptor? = null
 
@@ -77,8 +80,13 @@ class XrayVpnService : VpnService() {
 
     /**
      * Создаёт tun-интерфейс. Адреса/маршруты ниже — базовые «все наружу».
-     * При подключении реального движка DNS и split-tunneling настраиваются здесь
-     * и/или в конфиге движка.
+     *
+     * ВАЖНО про libbox: в реальном режиме (ENGINE_AAR_AVAILABLE=true) sing-box
+     * строит СВОЙ tun сам через PlatformInterface.openTun, а этот предварительный
+     * дескриптор движок закрывает. Здесь tun нужен прежде всего для fallback-режима
+     * и для валидации разрешения VPN. Защита от петли handshake до ноды в реальном
+     * режиме обеспечивается protect() сокетов sing-box (autoDetectInterfaceControl),
+     * а не маршрутом-исключением.
      */
     private fun buildTun(config: VlessConfig): ParcelFileDescriptor {
         val builder = Builder()

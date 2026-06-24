@@ -18,8 +18,8 @@ enum class VpnState {
  * и [VlessConfig], собирает из них рабочий конфиг движка и поднимает прокси внутри процесса,
  * заворачивая трафик из tun в VLESS Reality.
  *
- * В скелете подключена заглушка [ru.sapn.vpn.vpn.StubVpnEngine].
- * Реальный движок подключается отдельно — см. README и TODO в заглушке.
+ * Реализация — [ru.sapn.vpn.vpn.XrayCoreVpnEngine] (sing-box/libbox). Без AAR она
+ * работает как безопасная заглушка; подключение реального движка — см. её KDoc.
  */
 interface VpnEngine {
     /**

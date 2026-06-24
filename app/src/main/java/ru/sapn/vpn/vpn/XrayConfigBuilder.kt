@@ -13,14 +13,15 @@ import ru.sapn.vpn.domain.model.VlessConfig
 /**
  * Сборка JSON-конфига Xray-core из [VlessConfig].
  *
- * Это «чистая» (без Android/движка) логика — реальный артефакт интеграции:
+ * ПРИМЕЧАНИЕ: активный движок — sing-box ([SingBoxConfigBuilder] + libbox), у него
+ * нативный tun-inbound и tun2socks не нужен. Этот билдер оставлен как референс
+ * формата Xray (SOCKS inbound + VLESS Reality outbound) на случай альтернативного
+ * пути libXray + tun2socks. В текущей сборке [XrayCoreVpnEngine] его НЕ использует.
+ *
+ * Содержит:
  *  - VLESS Reality outbound (адрес/порт/uuid/flow + realitySettings);
  *  - SOCKS inbound на 127.0.0.1, через который tun2socks заворачивает трафик из tun;
  *  - DNS и базовый routing.
- *
- * Xray-core НЕ имеет нативного tun-inbound (в отличие от sing-box), поэтому связка с
- * Android VpnService строится через tun2socks: трафик tun → SOCKS inbound Xray.
- * См. [LibXrayVpnEngine] / документацию по подключению AAR.
  *
  * ВАЖНО (безопасность): сериализованный конфиг содержит uuid и ключи Reality —
  * НИКОГДА не логируем результат [build]/[buildString].

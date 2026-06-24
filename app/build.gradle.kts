@@ -88,9 +88,17 @@ dependencies {
 
     testImplementation(libs.junit)
 
-    // TODO(vpn-engine): Подключение бинарного VPN-движка.
-    // Положи AAR (libXray / sing-box mobile) в app/libs/ и раскомментируй:
-    // implementation(files("libs/libxray.aar"))
-    // или, если движок опубликован в Maven:
-    // implementation("io.nekohasekai:libbox:<version>")
+    // ── VPN-движок: sing-box (libbox AAR) ──────────────────────────────────
+    // Выбран sing-box: нативный tun-inbound (без tun2socks), формат конфига
+    // совпадает с Windows-клиентом. См. KDoc XrayCoreVpnEngine про сборку AAR.
+    //
+    // Шаги включения:
+    //   1) собрать libbox.aar (SagerNet/sing-box: `make lib_android`);
+    //   2) положить его в app/libs/libbox.aar;
+    //   3) раскомментировать строку ниже;
+    //   4) раскомментировать тело AndroidPlatformInterface.kt и реальный путь
+    //      в XrayCoreVpnEngine.start()/stop();
+    //   5) ENGINE_AAR_AVAILABLE = true.
+    //
+    // implementation(files("libs/libbox.aar"))
 }
