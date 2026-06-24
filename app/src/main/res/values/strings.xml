@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">SAPN VPN</string>
     <string name="vpn_notification_channel">SAPN VPN</string>
+    <string name="tile_label">SAPN VPN</string>
+    <string name="tile_subtitle">VPN</string>
 </resources>
