@@ -8,8 +8,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.sapn.vpn.ui.account.AccountScreen
+import ru.sapn.vpn.ui.account.AccountViewModel
 import ru.sapn.vpn.ui.auth.AuthViewModel
 import ru.sapn.vpn.ui.auth.LoginScreen
 import ru.sapn.vpn.ui.connection.ConnectionScreen
@@ -28,6 +33,10 @@ class MainActivity : ComponentActivity() {
         ConnectionViewModel.Factory(application, container.vpnRepository)
     }
 
+    private val accountViewModel: AccountViewModel by viewModels {
+        AccountViewModel.Factory(container.accountRepository)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -37,13 +46,19 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background,
                 ) {
                     val loggedIn by authViewModel.isLoggedIn.collectAsStateWithLifecycle()
-                    if (loggedIn) {
-                        ConnectionScreen(
+                    var showAccount by remember { mutableStateOf(false) }
+
+                    when {
+                        !loggedIn -> LoginScreen(viewModel = authViewModel)
+                        showAccount -> AccountScreen(
+                            viewModel = accountViewModel,
+                            onBack = { showAccount = false },
+                        )
+                        else -> ConnectionScreen(
                             viewModel = connectionViewModel,
                             onLogout = authViewModel::logout,
+                            onOpenAccount = { showAccount = true },
                         )
-                    } else {
-                        LoginScreen(viewModel = authViewModel)
                     }
                 }
             }

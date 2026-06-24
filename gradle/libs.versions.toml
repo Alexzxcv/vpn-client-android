@@ -13,6 +13,8 @@ kotlinxSerialization = "1.7.3"
 retrofitSerializationConverter = "1.0.0"
 datastore = "1.1.1"
 coroutines = "1.9.0"
+eddsa = "0.3.0"
+junit = "4.13.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +40,11 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
+# Ed25519 на всех API-уровнях (java.security Ed25519 — только с API 33).
+eddsa = { group = "net.i2p.crypto", name = "eddsa", version.ref = "eddsa" }
+
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

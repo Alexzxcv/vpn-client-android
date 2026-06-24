@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -36,6 +37,7 @@ import ru.sapn.vpn.domain.vpn.VpnState
 fun ConnectionScreen(
     viewModel: ConnectionViewModel,
     onLogout: () -> Unit,
+    onOpenAccount: () -> Unit,
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
     val vpnState by viewModel.vpnState.collectAsStateWithLifecycle()
@@ -73,11 +75,19 @@ fun ConnectionScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("SAPN VPN", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "Выйти",
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable(onClick = onLogout),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Аккаунт",
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable(onClick = onOpenAccount),
+                )
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    "Выйти",
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable(onClick = onLogout),
+                )
+            }
         }
 
         Spacer(Modifier.height(16.dp))

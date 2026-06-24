@@ -8,11 +8,14 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import ru.sapn.vpn.BuildConfig
+import ru.sapn.vpn.data.local.DeviceIdentity
 import ru.sapn.vpn.data.local.TokenStore
 import ru.sapn.vpn.data.remote.AuthInterceptor
 import ru.sapn.vpn.data.remote.VpnApi
+import ru.sapn.vpn.data.repository.AccountRepositoryImpl
 import ru.sapn.vpn.data.repository.AuthRepositoryImpl
 import ru.sapn.vpn.data.repository.VpnRepositoryImpl
+import ru.sapn.vpn.domain.repository.AccountRepository
 import ru.sapn.vpn.domain.repository.AuthRepository
 import ru.sapn.vpn.domain.repository.VpnRepository
 
@@ -30,6 +33,7 @@ class AppContainer(context: Context) {
     }
 
     val tokenStore = TokenStore(appContext)
+    private val deviceIdentity = DeviceIdentity(appContext)
 
     private val okHttp: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(AuthInterceptor(tokenStore, json))
@@ -53,5 +57,6 @@ class AppContainer(context: Context) {
         .create(VpnApi::class.java)
 
     val authRepository: AuthRepository = AuthRepositoryImpl(api, tokenStore)
-    val vpnRepository: VpnRepository = VpnRepositoryImpl(api, appContext)
+    val accountRepository: AccountRepository = AccountRepositoryImpl(api)
+    val vpnRepository: VpnRepository = VpnRepositoryImpl(api, deviceIdentity, tokenStore)
 }

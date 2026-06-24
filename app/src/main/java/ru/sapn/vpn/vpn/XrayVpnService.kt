@@ -28,7 +28,7 @@ import ru.sapn.vpn.domain.vpn.VpnState
 class XrayVpnService : VpnService() {
 
     // TODO(di): когда появится DI, инжектить реальный VpnEngine.
-    private val engine: VpnEngine = StubVpnEngine()
+    private val engine: VpnEngine = XrayCoreVpnEngine()
 
     private var tun: ParcelFileDescriptor? = null
 

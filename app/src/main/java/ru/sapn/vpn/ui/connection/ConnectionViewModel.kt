@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,9 +15,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.sapn.vpn.domain.model.Location
 import ru.sapn.vpn.domain.model.Subscription
+import ru.sapn.vpn.domain.model.VlessConfig
 import ru.sapn.vpn.domain.repository.VpnRepository
 import ru.sapn.vpn.domain.vpn.VpnState
 import ru.sapn.vpn.vpn.VpnController
+import java.time.Instant
+import java.time.format.DateTimeParseException
 
 data class ConnectionUiState(
     val loading: Boolean = false,
@@ -44,6 +49,9 @@ class ConnectionViewModel(
 
     val vpnState: StateFlow<VpnState> = VpnController.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VpnState.DISCONNECTED)
+
+    /** Корутина авто-рефреша конфига (перезапускается при каждом успешном fetch). */
+    private var refreshJob: Job? = null
 
     fun load() {
         viewModelScope.launch {
@@ -103,6 +111,7 @@ class ConnectionViewModel(
                 .onSuccess { config ->
                     _ui.value = _ui.value.copy(loading = false)
                     VpnController.start(getApplication(), config)
+                    scheduleRefresh(config)
                 }
                 .onFailure { e ->
                     _ui.value = _ui.value.copy(
@@ -114,7 +123,51 @@ class ConnectionViewModel(
     }
 
     fun disconnect() {
+        refreshJob?.cancel()
+        refreshJob = null
         VpnController.stop(getApplication())
+    }
+
+    /**
+     * Планирует авто-рефреш конфига: спит до момента «expires_at − 12ч», затем
+     * запрашивает новый конфиг и, если туннель ещё активен, перезапускает движок.
+     * Если [expiresAt] отсутствует/некорректен — рефреш не планируется.
+     */
+    private fun scheduleRefresh(config: VlessConfig) {
+        refreshJob?.cancel()
+        val expiry = config.expiresAt?.let { parseInstant(it) } ?: return
+        val refreshAt = expiry.minusSeconds(REFRESH_LEAD_SECONDS)
+        val delayMs = (refreshAt.toEpochMilli() - System.currentTimeMillis()).coerceAtLeast(0L)
+
+        refreshJob = viewModelScope.launch {
+            delay(delayMs)
+            if (vpnState.value != VpnState.CONNECTED && vpnState.value != VpnState.CONNECTING) {
+                return@launch
+            }
+            vpnRepository.fetchConfig(_ui.value.selectedLocationId)
+                .onSuccess { fresh ->
+                    // Бесшовно поднимаем туннель с новым конфигом.
+                    VpnController.start(getApplication(), fresh)
+                    scheduleRefresh(fresh)
+                }
+                .onFailure { e ->
+                    _ui.value = _ui.value.copy(
+                        error = e.message ?: "Не удалось обновить конфиг",
+                    )
+                }
+        }
+    }
+
+    private fun parseInstant(value: String): Instant? =
+        try {
+            Instant.parse(value)
+        } catch (_: DateTimeParseException) {
+            null
+        }
+
+    private companion object {
+        /** Авто-рефреш, когда до истечения остаётся менее 12ч. */
+        const val REFRESH_LEAD_SECONDS = 12L * 60L * 60L
     }
 
     class Factory(

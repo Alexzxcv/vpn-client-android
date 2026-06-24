@@ -4,7 +4,18 @@ package ru.sapn.vpn.domain.model
 data class User(
     val id: String,
     val email: String,
+    val username: String?,
     val isAdmin: Boolean,
+)
+
+/** Зарегистрированное устройство (GET /devices). */
+data class Device(
+    val deviceId: String,
+    val name: String,
+    val platform: String,
+    val blocked: Boolean,
+    val lastSeenAt: String?,
+    val createdAt: String?,
 )
 
 /** Подписка пользователя (GET /subscription). */
@@ -36,4 +47,6 @@ data class VlessConfig(
     val shortId: String,
     val sni: String,
     val fingerprint: String,
+    /** ISO-8601 момент истечения выданного конфига (для авто-рефреша). */
+    val expiresAt: String? = null,
 )

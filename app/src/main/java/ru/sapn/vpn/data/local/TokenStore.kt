@@ -22,6 +22,14 @@ class TokenStore(private val context: Context) {
     private companion object {
         val ACCESS = stringPreferencesKey("access_token")
         val REFRESH = stringPreferencesKey("refresh_token")
+        val DEVICE_ID = stringPreferencesKey("device_id")
+    }
+
+    /** device_id, выданный сервером при регистрации устройства (POST /devices). */
+    suspend fun deviceId(): String? = context.dataStore.data.first()[DEVICE_ID]
+
+    suspend fun saveDeviceId(deviceId: String) {
+        context.dataStore.edit { it[DEVICE_ID] = deviceId }
     }
 
     val accessTokenFlow: Flow<String?> = context.dataStore.data.map { it[ACCESS] }

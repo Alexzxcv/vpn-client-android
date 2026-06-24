@@ -83,6 +83,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Идентичность устройства: Ed25519-подпись на всех API (>=26).
+    implementation(libs.eddsa)
+
+    testImplementation(libs.junit)
+
     // TODO(vpn-engine): Подключение бинарного VPN-движка.
     // Положи AAR (libXray / sing-box mobile) в app/libs/ и раскомментируй:
     // implementation(files("libs/libxray.aar"))
