@@ -100,7 +100,8 @@ data class ConfigRequest(
 
 @Serializable
 data class ConfigResponse(
-    val server: String,
+    // Бэкенд отдаёт адрес ноды в поле "host" (не "server").
+    val host: String,
     val port: Int,
     val uuid: String,
     val security: String,

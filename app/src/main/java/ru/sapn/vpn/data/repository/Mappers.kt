@@ -37,7 +37,7 @@ fun LocationResponse.toDomain() =
     Location(id = id, name = name, location = location)
 
 fun ConfigResponse.toDomain() = VlessConfig(
-    host = server,
+    host = host,
     port = port,
     uuid = uuid,
     security = security,
