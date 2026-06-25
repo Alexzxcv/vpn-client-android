@@ -23,6 +23,11 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Долгое нажатие на плитку быстрых настроек открывает само приложение,
+                 а не системные настройки VPN. -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
         </activity>
 
         <!-- VPN-сервис. BIND_VPN_SERVICE обязателен и предоставляется системой. -->
