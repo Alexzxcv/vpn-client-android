@@ -19,12 +19,18 @@ android {
         applicationId = "ru.sapn.vpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
 
         // База API control-plane. Переопределяется по сборкам ниже.
         // Никаких секретов здесь — только публичный адрес.
         buildConfigField("String", "API_BASE_URL", "\"https://bot.niffty.ru/api/\"")
+
+        // Реальные устройства — только ARM. x86/x86_64 (эмуляторы) не тащим,
+        // чтобы вдвое срезать размер APK с нативным sing-box (libbox.so).
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     signingConfigs {
@@ -121,5 +127,7 @@ dependencies {
     //      в XrayCoreVpnEngine.start()/stop();
     //   5) ENGINE_AAR_AVAILABLE = true.
     //
-    // implementation(files("libs/libbox.aar"))
+    // ВКЛЮЧЕНО: libbox.aar собран (sing-box 1.11.15, gomobile bind, теги
+    // with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api).
+    implementation(files("libs/libbox.aar"))
 }

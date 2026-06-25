@@ -1,47 +1,26 @@
 package ru.sapn.vpn.vpn.libbox
 
-/*
- * ─────────────────────────────────────────────────────────────────────────────
- * РЕАЛЬНАЯ ИНТЕГРАЦИЯ libbox (sing-box mobile).
- *
- * Этот файл ИМПОРТИРУЕТ типы из AAR `io.nekohasekai.libbox.*`. Пока AAR не лежит
- * в `app/libs/libbox.aar` (см. app/build.gradle.kts), файл НЕ компилируется, поэтому
- * по умолчанию он закомментирован целиком. Чтобы включить реальный движок:
- *
- *   1. Положи libbox.aar в app/libs/ (как собрать — см. KDoc XrayCoreVpnEngine).
- *   2. В app/build.gradle.kts раскомментируй `implementation(files("libs/libbox.aar"))`.
- *   3. Раскомментируй тело этого файла (убери блок /* … */ ниже).
- *   4. В XrayCoreVpnEngine поставь ENGINE_AAR_AVAILABLE = true.
- *
- * Класс реализует io.nekohasekai.libbox.PlatformInterface — мост между sing-box и
- * Android VpnService:
- *  - openTun(): отдаёт движку FD tun, который мы строим из TunOptions через
- *    VpnService.Builder (адреса/маршруты/MTU/DNS берём из options);
- *  - autoDetectInterfaceControl(fd): protect() исходящих сокетов sing-box, чтобы
- *    handshake до ноды не зацикливался в tun;
- *  - остальные методы — безопасные дефолты (no-op / разумные значения).
- *
- * Сигнатуры сверены по публичному API libbox (pkg.go.dev .../experimental/libbox),
- * ветка sing-box 1.11.x. gomobile отображает Go-методы GetX()/OpenTun() в Kotlin как
- * getX()/openTun(); методы с (…, error) бросают исключение. Если апстрим поменяет
- * интерфейс — сверь по experimental/libbox/platform_interface.go.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
-/*
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
 import io.nekohasekai.libbox.InterfaceUpdateListener
-import io.nekohasekai.libbox.LocalDNSTransport
 import io.nekohasekai.libbox.NetworkInterfaceIterator
 import io.nekohasekai.libbox.Notification
 import io.nekohasekai.libbox.PlatformInterface
-import io.nekohasekai.libbox.StringIterator
 import io.nekohasekai.libbox.TunOptions
 import io.nekohasekai.libbox.WIFIState
 
 /**
- * Реализация libbox.PlatformInterface поверх Android [VpnService].
+ * Реализация io.nekohasekai.libbox.PlatformInterface поверх Android [VpnService]
+ * (sing-box 1.11.x, libbox.aar собран gomobile bind, см. KDoc XrayCoreVpnEngine).
+ *
+ * Мост между sing-box и VpnService:
+ *  - [openTun]: строит tun из [TunOptions] (адреса/маршруты/MTU/DNS, которые
+ *    sing-box посчитал из нашего конфига) через VpnService.Builder и отдаёт FD;
+ *  - [autoDetectInterfaceControl]: protect() исходящих сокетов движка, чтобы
+ *    handshake до ноды не зацикливался в tun;
+ *  - остальные методы — безопасные дефолты (no-op / разумные значения).
+ *
+ * Сигнатуры сверены по фактическому API AAR (javap io.nekohasekai.libbox.*).
  *
  * @param service активный VpnService (для protect() и построения tun).
  * @param newBuilder фабрика свежего VpnService.Builder под каждый openTun().
@@ -62,7 +41,7 @@ class AndroidPlatformInterface(
     override fun openTun(options: TunOptions): Int {
         val builder = newBuilder()
             .setSession("SAPN VPN")
-            .setMtu(options.mtu)
+            .setMtu(options.getMTU())
 
         // IPv4-адреса tun.
         val inet4 = options.inet4Address
@@ -98,7 +77,7 @@ class AndroidPlatformInterface(
 
         // DNS из опций (если задан).
         runCatching {
-            val dns = options.dnsServerAddress
+            val dns = options.getDNSServerAddress()
             if (dns != null && dns.value.isNotBlank()) builder.addDnsServer(dns.value)
         }
 
@@ -131,9 +110,6 @@ class AndroidPlatformInterface(
         }
     }
 
-    /** Свой DNS-транспорт не подменяем — используем заданный в конфиге. */
-    override fun localDNSTransport(): LocalDNSTransport? = null
-
     /** Логи sing-box не пробрасываем (анти-leak: конфиг/ключи не должны утечь в Logcat). */
     override fun writeLog(message: String?) {}
 
@@ -162,7 +138,6 @@ class AndroidPlatformInterface(
     override fun underNetworkExtension(): Boolean = false
     override fun includeAllNetworks(): Boolean = false
     override fun readWIFIState(): WIFIState? = null
-    override fun systemCertificates(): StringIterator? = null
     override fun clearDNSCache() {}
     override fun sendNotification(notification: Notification?) {}
 
@@ -172,4 +147,3 @@ class AndroidPlatformInterface(
         tunFd = null
     }
 }
-*/

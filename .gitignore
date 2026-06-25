@@ -21,8 +21,10 @@ keystore.properties
 secrets.properties
 *.env
 
-# Бинарный VPN-движок (AAR) — подкладывается локально, не в репозиторий
+# Бинарный VPN-движок (AAR). Прочие .aar — локальные, но libbox.aar (собранный
+# из sing-box 1.11.15 через gomobile) коммитим: без него приложение/CI не собрать.
 /app/libs/*.aar
+!/app/libs/libbox.aar
 
 # Logs
 *.log
