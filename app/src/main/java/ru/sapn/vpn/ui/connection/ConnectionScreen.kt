@@ -58,6 +58,7 @@ import ru.sapn.vpn.ui.components.Metric
 import ru.sapn.vpn.ui.components.SapnCard
 import ru.sapn.vpn.ui.components.formatBytes
 import ru.sapn.vpn.ui.theme.Sapn
+import ru.sapn.vpn.update.AppInstaller
 
 @Composable
 fun ConnectionScreen(viewModel: ConnectionViewModel) {
@@ -135,9 +136,7 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
                     )
                     TextButton(onClick = { viewModel.dismissUpdate() }) { Text("Позже", color = Sapn.Mute) }
                     TextButton(onClick = {
-                        val i = Intent(Intent.ACTION_VIEW, Uri.parse(upd.apkUrl))
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        runCatching { context.startActivity(i) }
+                        AppInstaller.downloadAndInstall(context, upd.apkUrl, upd.versionName)
                     }) { Text("Обновить", color = Sapn.Ion) }
                 }
             }
