@@ -23,10 +23,11 @@ object Sapn {
     val Mute = Color(0xFF8A93A6)      // вторичный текст
     val Faint = Color(0xFF55607A)     // очень тихий текст/иконки
 
-    val Ion = Color(0xFF3DA9FC)       // акцент
-    val Ok = Color(0xFF36D399)        // подключено / успех
+    val Ion = Color(0xFF3DA9FC)       // акцент / тариф Basic
+    val Ok = Color(0xFF36D399)        // подключено / успех / тариф Standard
     val Warn = Color(0xFFFBBD23)      // предупреждение
     val Alert = Color(0xFFF2555A)     // ошибка / отключить
+    val Gold = Color(0xFFF0A030)      // тариф Pro (золото ближе к оранжевому)
 }
 
 private val SapnDark = darkColorScheme(

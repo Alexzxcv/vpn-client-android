@@ -304,10 +304,16 @@ private fun SubscriptionStrip(sub: Subscription?, devicesUsed: Int) {
             // Тариф: всегда один из FREE / BASIC / STANDARD / PRO. Нет активной
             // платной подписки → FREE.
             val planLabel = if (active) (sub?.plan ?: "").uppercase() else "FREE"
+            val planColor = when (planLabel) {
+                "BASIC" -> Sapn.Ion       // светло-синий
+                "STANDARD" -> Sapn.Ok     // зелёный
+                "PRO" -> Sapn.Gold        // золотой
+                else -> Sapn.Mute         // FREE — серый
+            }
             Metric(
                 stringResource(R.string.connect_subscription_plan),
                 planLabel,
-                valueColor = Sapn.Frost,
+                valueColor = planColor,
             )
             // Трафик: у платных — лимит тарифа; у free — бесплатный суточный (1ГБ/день).
             val trafficText = when {

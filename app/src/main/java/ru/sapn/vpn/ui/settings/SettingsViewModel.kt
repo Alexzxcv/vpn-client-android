@@ -44,8 +44,11 @@ class SettingsViewModel(private val store: SettingsStore) : ViewModel() {
     fun save() {
         val s = _ui.value
         viewModelScope.launch {
+            // read-modify-write: НЕ затираем per-app поля (appMode/appPackages),
+            // которыми владеет PerAppViewModel через тот же SettingsStore.
+            val cur = store.get()
             store.save(
-                VpnSettings(
+                cur.copy(
                     russiaDirect = s.russiaDirect,
                     directList = s.directList.lines().map { it.trim() }.filter { it.isNotEmpty() },
                 )
