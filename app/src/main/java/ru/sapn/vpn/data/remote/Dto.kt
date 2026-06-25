@@ -78,7 +78,9 @@ data class LocationResponse(
 data class DeviceRequest(
     @SerialName("public_key") val publicKey: String, // base64 std, 32 байта
     val name: String,
-    val platform: String = "android",
+    // БЕЗ дефолта: иначе kotlinx.serialization (encodeDefaults=false) выкидывает
+    // поле, равное дефолту, и бэкенд получает пустой platform.
+    val platform: String,
     val mac: String? = null,
 )
 

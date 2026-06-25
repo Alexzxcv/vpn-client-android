@@ -26,6 +26,10 @@ class VpnRepositoryImpl(
         api.locations().map { it.toDomain() }
     }
 
+    override suspend fun devicesUsed(): Result<Int> = runCatching {
+        api.devices().size
+    }
+
     override suspend fun registerDevice(): Result<Unit> = runCatching {
         identity.ensureKeyPair()
         val resp = api.registerDevice(

@@ -39,6 +39,9 @@ interface VpnRepository {
     suspend fun subscription(): Result<Subscription>
     suspend fun locations(): Result<List<Location>>
 
+    /** Кол-во привязанных устройств (для индикатора «использовано/лимит»). */
+    suspend fun devicesUsed(): Result<Int>
+
     /**
      * Регистрация устройства по публичному ключу (идемпотентно по public_key).
      * Сохраняет выданный device_id локально. Обязательна перед запросом конфига.

@@ -188,7 +188,7 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
         Spacer(Modifier.height(24.dp))
 
         // --- Метрики подписки ---
-        SubscriptionStrip(state.subscription)
+        SubscriptionStrip(state.subscription, state.devicesUsed)
 
         Spacer(Modifier.height(20.dp))
 
@@ -293,32 +293,31 @@ private fun ConnectDial(state: VpnState, enabled: Boolean, onClick: () -> Unit) 
 }
 
 @Composable
-private fun SubscriptionStrip(sub: Subscription?) {
+private fun SubscriptionStrip(sub: Subscription?, devicesUsed: Int) {
     SapnCard(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             val dash = stringResource(R.string.connect_dash)
-            val plan = sub?.plan?.replaceFirstChar { it.uppercase() } ?: dash
             val active = sub?.active == true
+            // Тариф: всегда один из FREE / BASIC / STANDARD / PRO. Нет активной
+            // платной подписки → FREE.
+            val planLabel = if (active) (sub?.plan ?: "").uppercase() else "FREE"
             Metric(
                 stringResource(R.string.connect_subscription_plan),
-                if (sub == null) dash else "$plan",
-                valueColor = if (active) Sapn.Frost else Sapn.Warn,
+                planLabel,
+                valueColor = Sapn.Frost,
             )
             Metric(
                 stringResource(R.string.connect_subscription_traffic),
                 if (sub == null) dash else "${formatBytes(sub.trafficUsedBytes)} / ${formatBytes(sub.trafficLimitBytes)}",
             )
+            // Устройства: использовано / лимит. Free → 0/0 (платных слотов нет).
             Metric(
                 stringResource(R.string.connect_subscription_devices),
-                if (sub == null) dash else "${sub.deviceLimit}",
+                if (active) "$devicesUsed/${sub?.deviceLimit ?: 0}" else "0/0",
             )
-        }
-        if (sub != null && !sub.active) {
-            Spacer(Modifier.height(10.dp))
-            Text(stringResource(R.string.connect_subscription_inactive), color = Sapn.Warn, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Warn))
         }
     }
 }

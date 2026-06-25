@@ -39,6 +39,8 @@ data class ConnectionUiState(
     val subscription: Subscription? = null,
     val locations: List<Location> = emptyList(),
     val customServers: List<CustomServer> = emptyList(),
+    /** Кол-во привязанных устройств (X в индикаторе X/Y). */
+    val devicesUsed: Int = 0,
     val selectedLocationId: String? = null,
     val error: String? = null,
     /** Ошибка добавления своего конфига (для диалога). */
@@ -97,11 +99,13 @@ class ConnectionViewModel(
         viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, error = null)
             val sub = vpnRepository.subscription().getOrNull()
+            val used = vpnRepository.devicesUsed().getOrNull() ?: 0
             vpnRepository.locations()
                 .onSuccess { locs ->
                     _ui.value = _ui.value.copy(
                         loading = false,
                         subscription = sub,
+                        devicesUsed = used,
                         locations = locs,
                         selectedLocationId = _ui.value.selectedLocationId ?: locs.firstOrNull()?.id,
                     )
@@ -110,6 +114,7 @@ class ConnectionViewModel(
                     _ui.value = _ui.value.copy(
                         loading = false,
                         subscription = sub,
+                        devicesUsed = used,
                         error = e.message ?: str(R.string.connect_error_load_locations),
                     )
                 }
