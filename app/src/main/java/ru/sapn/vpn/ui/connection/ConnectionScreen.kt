@@ -309,10 +309,13 @@ private fun SubscriptionStrip(sub: Subscription?, devicesUsed: Int) {
                 planLabel,
                 valueColor = Sapn.Frost,
             )
-            Metric(
-                stringResource(R.string.connect_subscription_traffic),
-                if (sub == null) dash else "${formatBytes(sub.trafficUsedBytes)} / ${formatBytes(sub.trafficLimitBytes)}",
-            )
+            // Трафик: у платных — лимит тарифа; у free — бесплатный суточный (1ГБ/день).
+            val trafficText = when {
+                sub == null -> dash
+                active -> "${formatBytes(sub.trafficUsedBytes)} / ${formatBytes(sub.trafficLimitBytes)}"
+                else -> "${formatBytes(sub.freeDailyUsedBytes)} / ${formatBytes(sub.freeDailyLimitBytes)}"
+            }
+            Metric(stringResource(R.string.connect_subscription_traffic), trafficText)
             // Устройства: использовано / лимит. Free → 0/0 (платных слотов нет).
             Metric(
                 stringResource(R.string.connect_subscription_devices),

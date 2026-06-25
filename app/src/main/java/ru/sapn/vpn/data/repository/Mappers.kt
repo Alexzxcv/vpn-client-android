@@ -31,6 +31,8 @@ fun SubscriptionResponse.toDomain() =
         trafficLimitBytes = trafficLimitBytes,
         trafficUsedBytes = trafficUsedBytes,
         expiresAt = expiresAt,
+        freeDailyLimitBytes = freeDaily?.limitBytes ?: 0,
+        freeDailyUsedBytes = freeDaily?.usedTodayBytes ?: 0,
     )
 
 fun LocationResponse.toDomain() =

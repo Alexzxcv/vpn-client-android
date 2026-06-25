@@ -55,6 +55,14 @@ data class SubscriptionResponse(
     @SerialName("traffic_limit_bytes") val trafficLimitBytes: Long = 0,
     @SerialName("traffic_used_bytes") val trafficUsedBytes: Long = 0,
     @SerialName("expires_at") val expiresAt: String? = null,
+    @SerialName("free_daily") val freeDaily: FreeDailyDto? = null,
+)
+
+/** Бесплатный суточный лимит трафика (показывается free-юзерам). */
+@Serializable
+data class FreeDailyDto(
+    @SerialName("limit_bytes") val limitBytes: Long = 0,
+    @SerialName("used_today_bytes") val usedTodayBytes: Long = 0,
 )
 
 // ---- Locations ----

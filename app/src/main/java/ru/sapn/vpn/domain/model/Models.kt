@@ -26,6 +26,9 @@ data class Subscription(
     val trafficLimitBytes: Long,
     val trafficUsedBytes: Long,
     val expiresAt: String?,
+    /** Бесплатный суточный лимит (для free-юзеров): лимит и использовано сегодня. */
+    val freeDailyLimitBytes: Long = 0,
+    val freeDailyUsedBytes: Long = 0,
 )
 
 /** Локация/нода для подключения (GET /vpn/locations). */
