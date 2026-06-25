@@ -24,16 +24,23 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PowerSettingsNew
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.sapn.vpn.domain.model.CustomServer
 import ru.sapn.vpn.domain.model.Location
 import ru.sapn.vpn.domain.model.Subscription
 import ru.sapn.vpn.domain.vpn.VpnState
@@ -77,6 +85,8 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
             else viewModel.onVpnPermissionResult(true)
         }
     }
+
+    var showAddDialog by remember { mutableStateOf(false) }
 
     val connected = vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING
     val selectedLoc = state.locations.firstOrNull { it.id == state.selectedLocationId }
@@ -192,6 +202,55 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
             )
             Spacer(Modifier.height(8.dp))
         }
+
+        // --- Свои конфиги (custom VLESS) ---
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Eyebrow("Свои конфиги")
+            Text(
+                "+ Добавить",
+                color = Sapn.Ion,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.clickable { showAddDialog = true },
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        if (state.customServers.isEmpty()) {
+            Text(
+                "Вставьте свою vless:// ссылку, чтобы подключаться к своему серверу.",
+                color = Sapn.Mute,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        state.customServers.forEach { cs ->
+            CustomRow(
+                server = cs,
+                selected = state.selectedLocationId == "custom:${cs.id}",
+                onClick = { viewModel.selectLocation("custom:${cs.id}") },
+                onDelete = { viewModel.removeCustomServer(cs.id) },
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+
+    if (showAddDialog) {
+        val sizeAtOpen = remember { state.customServers.size }
+        AddCustomDialog(
+            error = state.customError,
+            onAdd = { link -> viewModel.addCustomServer(link) },
+            onDismiss = { viewModel.clearCustomError(); showAddDialog = false },
+        )
+        // Закрываем диалог, как только конфиг успешно добавился (список вырос).
+        LaunchedEffect(state.customServers.size) {
+            if (state.customServers.size > sizeAtOpen) {
+                viewModel.clearCustomError()
+                showAddDialog = false
+            }
+        }
     }
 }
 
@@ -291,6 +350,79 @@ private fun LocationRow(loc: Location, selected: Boolean, onClick: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+private fun CustomRow(server: CustomServer, selected: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
+    val border = if (selected) Sapn.Ion else Sapn.Hairline
+    val bg = if (selected) Sapn.Ion.copy(alpha = 0.07f) else Sapn.Slate
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(6.dp),
+        color = bg,
+        border = BorderStroke(1.dp, border),
+    ) {
+        Row(
+            Modifier.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(if (selected) Sapn.Ion else Sapn.Faint))
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(server.name, color = Sapn.Frost, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${server.config.host}:${server.config.port}", color = Sapn.Mute, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(
+                Icons.Outlined.Delete,
+                contentDescription = "Удалить",
+                tint = Sapn.Faint,
+                modifier = Modifier.size(20.dp).clickable(onClick = onDelete),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddCustomDialog(error: String?, onAdd: (String) -> Unit, onDismiss: () -> Unit) {
+    var link by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Sapn.Slate,
+        titleContentColor = Sapn.Frost,
+        textContentColor = Sapn.Mute,
+        title = { Text("Свой VLESS-конфиг") },
+        text = {
+            Column {
+                Text("Вставьте ссылку вида vless://…", color = Sapn.Mute, style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = link,
+                    onValueChange = { link = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("vless://uuid@host:443?...", color = Sapn.Faint) },
+                    minLines = 2,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Sapn.Ion,
+                        unfocusedBorderColor = Sapn.Hairline,
+                        focusedTextColor = Sapn.Frost,
+                        unfocusedTextColor = Sapn.Frost,
+                        cursorColor = Sapn.Ion,
+                    ),
+                )
+                if (error != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(error, color = Sapn.Alert, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Alert))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (link.isNotBlank()) onAdd(link) }) {
+                Text("Добавить", color = Sapn.Ion)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена", color = Sapn.Mute) }
+        },
+    )
 }
 
 private fun stateLabel(s: VpnState): String = when (s) {

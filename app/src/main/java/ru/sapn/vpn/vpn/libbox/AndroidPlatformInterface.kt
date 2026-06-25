@@ -75,16 +75,23 @@ class AndroidPlatformInterface(
             if (dns != null && dns.value.isNotBlank()) builder.addDnsServer(dns.value)
         }
 
-        // Свой трафик приложения мимо tun (control-plane не через движок).
-        runCatching { builder.addDisallowedApplication(service.packageName) }
+        // Per-app маршрутизация. ВАЖНО: addAllowedApplication и addDisallowedApplication
+        // нельзя смешивать (иначе IllegalArgumentException). Поэтому:
+        //  - есть include-список → allowlist (только эти приложения в туннель; наш
+        //    пакет НЕ добавляем — он и так вне туннеля, control-plane работает);
+        //  - иначе → denylist: наш пакет всегда мимо туннеля + указанные исключения.
+        val includes = ArrayList<String>()
+        val inc = options.includePackage
+        while (inc.hasNext()) includes.add(inc.next())
+        val excludes = ArrayList<String>()
+        val exc = options.excludePackage
+        while (exc.hasNext()) excludes.add(exc.next())
 
-        val include = options.includePackage
-        while (include.hasNext()) {
-            runCatching { builder.addAllowedApplication(include.next()) }
-        }
-        val exclude = options.excludePackage
-        while (exclude.hasNext()) {
-            runCatching { builder.addDisallowedApplication(exclude.next()) }
+        if (includes.isNotEmpty()) {
+            includes.forEach { runCatching { builder.addAllowedApplication(it) } }
+        } else {
+            runCatching { builder.addDisallowedApplication(service.packageName) }
+            excludes.forEach { runCatching { builder.addDisallowedApplication(it) } }
         }
 
         val pfd = builder.establish()

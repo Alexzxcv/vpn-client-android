@@ -35,6 +35,8 @@ import ru.sapn.vpn.ui.auth.AuthViewModel
 import ru.sapn.vpn.ui.auth.LoginScreen
 import ru.sapn.vpn.ui.connection.ConnectionScreen
 import ru.sapn.vpn.ui.connection.ConnectionViewModel
+import ru.sapn.vpn.ui.settings.PerAppScreen
+import ru.sapn.vpn.ui.settings.PerAppViewModel
 import ru.sapn.vpn.ui.settings.SettingsScreen
 import ru.sapn.vpn.ui.settings.SettingsViewModel
 import ru.sapn.vpn.ui.theme.Sapn
@@ -49,7 +51,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private val connectionViewModel: ConnectionViewModel by viewModels {
-        ConnectionViewModel.Factory(application, container.vpnRepository, container.updateRepository)
+        ConnectionViewModel.Factory(
+            application,
+            container.vpnRepository,
+            container.updateRepository,
+            container.customServerStore,
+        )
     }
 
     private val accountViewModel: AccountViewModel by viewModels {
@@ -58,6 +65,10 @@ class MainActivity : ComponentActivity() {
 
     private val settingsViewModel: SettingsViewModel by viewModels {
         SettingsViewModel.Factory(container.settingsStore)
+    }
+
+    private val perAppViewModel: PerAppViewModel by viewModels {
+        PerAppViewModel.Factory(application, container.settingsStore)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,9 +92,10 @@ class MainActivity : ComponentActivity() {
                         LoginScreen(viewModel = authViewModel)
                     } else {
                         var tab by remember { mutableStateOf(Tab.Connect) }
+                        var showPerApp by remember { mutableStateOf(false) }
                         Scaffold(
                             containerColor = MaterialTheme.colorScheme.background,
-                            bottomBar = { BottomNav(current = tab, onSelect = { tab = it }) },
+                            bottomBar = { BottomNav(current = tab, onSelect = { tab = it; showPerApp = false }) },
                         ) { inner ->
                             Box(Modifier.padding(inner)) {
                                 when (tab) {
@@ -92,7 +104,15 @@ class MainActivity : ComponentActivity() {
                                         viewModel = accountViewModel,
                                         onLogout = authViewModel::logout,
                                     )
-                                    Tab.Settings -> SettingsScreen(viewModel = settingsViewModel)
+                                    Tab.Settings ->
+                                        if (showPerApp) {
+                                            PerAppScreen(viewModel = perAppViewModel, onBack = { showPerApp = false })
+                                        } else {
+                                            SettingsScreen(
+                                                viewModel = settingsViewModel,
+                                                onOpenPerApp = { showPerApp = true },
+                                            )
+                                        }
                                 }
                             }
                         }

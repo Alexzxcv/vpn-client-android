@@ -8,6 +8,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import ru.sapn.vpn.domain.model.AppRoutingMode
 import ru.sapn.vpn.domain.model.VlessConfig
 import ru.sapn.vpn.domain.model.VpnSettings
 
@@ -71,6 +72,17 @@ object SingBoxConfigBuilder {
                 put("stack", "gvisor")
                 put("mtu", TUN_MTU)
                 put("sniff", true)
+                // Per-app маршрутизация (split tunneling по приложениям). sing-box
+                // передаёт эти списки в TunOptions, которые применяет openTun.
+                if (settings.appPackages.isNotEmpty()) {
+                    when (settings.appMode) {
+                        AppRoutingMode.INCLUDE ->
+                            putJsonArray("include_package") { settings.appPackages.forEach { add(it) } }
+                        AppRoutingMode.EXCLUDE ->
+                            putJsonArray("exclude_package") { settings.appPackages.forEach { add(it) } }
+                        AppRoutingMode.OFF -> {}
+                    }
+                }
             }
         }
 

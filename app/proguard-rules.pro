@@ -9,6 +9,13 @@
 -keepclassmembers class ru.sapn.vpn.data.remote.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+# @Serializable классы в data.local (свои конфиги хранятся в DataStore как JSON).
+-keepclasseswithmembers class ru.sapn.vpn.data.local.** {
+    *** Companion;
+}
+-keepclassmembers class ru.sapn.vpn.data.local.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
 # Retrofit / OkHttp.
 -dontwarn okhttp3.**

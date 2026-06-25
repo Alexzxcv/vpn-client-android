@@ -1,5 +1,6 @@
 package ru.sapn.vpn.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +30,7 @@ import ru.sapn.vpn.ui.components.SapnCard
 import ru.sapn.vpn.ui.theme.Sapn
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel) {
+fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { viewModel.load() }
@@ -43,6 +44,25 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Настройки", style = MaterialTheme.typography.headlineMedium, color = Sapn.Frost)
+
+        // ---- Приложения через VPN (per-app) ----
+        SapnCard(Modifier.fillMaxWidth().clickable(onClick = onOpenPerApp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Приложения через VPN", color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Выбрать, какие приложения идут через туннель (split tunneling)",
+                        color = Sapn.Mute,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Text("›", color = Sapn.Faint, style = MaterialTheme.typography.titleLarge)
+            }
+        }
 
         // ---- Российские сайты напрямую ----
         SapnCard(Modifier.fillMaxWidth()) {

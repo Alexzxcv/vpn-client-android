@@ -8,6 +8,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import ru.sapn.vpn.BuildConfig
+import ru.sapn.vpn.data.local.CustomServerStore
 import ru.sapn.vpn.data.local.DeviceIdentity
 import ru.sapn.vpn.data.local.SettingsStore
 import ru.sapn.vpn.data.local.TokenStore
@@ -37,6 +38,7 @@ class AppContainer(context: Context) {
 
     val tokenStore = TokenStore(appContext)
     val settingsStore = SettingsStore(appContext)
+    val customServerStore = CustomServerStore(appContext)
     private val deviceIdentity = DeviceIdentity(appContext)
 
     private val okHttp: OkHttpClient = OkHttpClient.Builder()
