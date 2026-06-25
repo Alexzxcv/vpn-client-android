@@ -58,6 +58,9 @@ class ConnectionViewModel(
     val vpnState: StateFlow<VpnState> = VpnController.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VpnState.DISCONNECTED)
 
+    /** Текст ошибки движка (показывается в UI). */
+    val vpnError: StateFlow<String?> = VpnController.error
+
     /** Корутина авто-рефреша конфига (перезапускается при каждом успешном fetch). */
     private var refreshJob: Job? = null
 
@@ -108,7 +111,34 @@ class ConnectionViewModel(
     }
 
     fun selectLocation(id: String) {
+        val prev = _ui.value.selectedLocationId
         _ui.value = _ui.value.copy(selectedLocationId = id)
+        // Авто-переподключение: если уже подключены и сменили ноду — переключаемся
+        // на неё сами, без ручного отключения/подключения.
+        val st = vpnState.value
+        if (id != prev && (st == VpnState.CONNECTED || st == VpnState.CONNECTING)) {
+            reconnect(id)
+        }
+    }
+
+    /** Переподключиться на ноду [id] (тянем конфиг и перезапускаем туннель). */
+    private fun reconnect(id: String) {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(loading = true, error = null)
+            vpnRepository.fetchConfig(id)
+                .onSuccess { config ->
+                    _ui.value = _ui.value.copy(loading = false)
+                    // Сервис сам погасит старый туннель перед стартом нового.
+                    VpnController.start(getApplication(), config)
+                    scheduleRefresh(config)
+                }
+                .onFailure { e ->
+                    _ui.value = _ui.value.copy(
+                        loading = false,
+                        error = e.message ?: "Не удалось переключить ноду",
+                    )
+                }
+        }
     }
 
     /** Шаг 1: привязать устройство, проверить разрешение VPN. */

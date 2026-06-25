@@ -20,13 +20,24 @@ object VpnController {
     private val _state = MutableStateFlow(VpnState.DISCONNECTED)
     val state: StateFlow<VpnState> = _state.asStateFlow()
 
+    /** Текст последней ошибки подключения (для показа в UI). */
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
     /** Конфиг, который сервис заберёт при старте. */
     @Volatile
     var pendingConfig: VlessConfig? = null
         private set
 
     fun updateState(state: VpnState) {
+        if (state == VpnState.CONNECTING || state == VpnState.CONNECTED) _error.value = null
         _state.value = state
+    }
+
+    /** Перевести в ошибку с человекочитаемым сообщением (показывается в UI). */
+    fun fail(message: String?) {
+        _error.value = message
+        _state.value = VpnState.ERROR
     }
 
     /** Запрос на старт туннеля. Должен вызываться после VpnService.prepare(). */

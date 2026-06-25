@@ -55,6 +55,7 @@ import ru.sapn.vpn.ui.theme.Sapn
 fun ConnectionScreen(viewModel: ConnectionViewModel) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
     val vpnState by viewModel.vpnState.collectAsStateWithLifecycle()
+    val vpnError by viewModel.vpnError.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -160,10 +161,11 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
             }
         }
 
-        if (state.error != null) {
+        val shownError = state.error ?: vpnError?.takeIf { vpnState == VpnState.ERROR }
+        if (shownError != null) {
             Spacer(Modifier.height(12.dp))
             Text(
-                state.error!!,
+                "Ошибка: $shownError",
                 color = Sapn.Alert,
                 style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Alert),
             )

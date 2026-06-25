@@ -43,7 +43,7 @@ class XrayVpnService : VpnService() {
         val config = VpnController.consumePendingConfig()
         if (config == null) {
             Log.w(TAG, "connect: pending config is null")
-            VpnController.updateState(VpnState.ERROR)
+            VpnController.fail("Внутренняя ошибка: конфиг не передан")
             stopSelf()
             return
         }
@@ -52,12 +52,15 @@ class XrayVpnService : VpnService() {
         startForeground(NOTIF_ID, buildNotification())
 
         try {
+            // Перед стартом гасим возможный предыдущий туннель — это делает повторный
+            // ACTION_CONNECT (смена ноды) бесшовным переподключением.
+            runCatching { engine.stop() }
             val settings = runBlocking { SettingsStore(applicationContext).get() }
             engine.start(config, settings)
             VpnController.updateState(VpnState.CONNECTED)
         } catch (t: Throwable) {
-            Log.e(TAG, "connect failed: ${t.message}")
-            VpnController.updateState(VpnState.ERROR)
+            Log.e(TAG, "connect failed", t)
+            VpnController.fail(t.message ?: t.javaClass.simpleName)
             runCatching { engine.stop() }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()

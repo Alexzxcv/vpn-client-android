@@ -37,15 +37,22 @@ class AuthInterceptor(
 
         if (response.code != 401) return response
 
-        // 401 — пробуем обновить токен (синхронно, под локом).
+        // КРИТИЧНО: закрываем 401-ответ ПЕРЕД любым новым запросом по этой цепочке.
+        // Иначе OkHttp бросает "cannot make a new request because the previous
+        // response is still open" прямо в Dispatcher-потоке → НЕперехватываемый
+        // краш приложения (проявлялся как «не запускается после истечения токена»).
+        response.close()
+
+        // 401 — пробуем обновить токен (синхронно, под локом, single-flight).
         val newAccess = synchronized(refreshLock) {
             runBlocking { refreshTokens(chain, original) }
-        } ?: run {
-            runBlocking { tokenStore.clear() }
-            return response
         }
-
-        response.close()
+        if (newAccess == null) {
+            runBlocking { tokenStore.clear() }
+            // Повторяем исходный запрос — вернёт свежий 401, его обработает
+            // вызывающий код (покажет ошибку / разлогинит), но без краша.
+            return chain.proceed(original.withBearer(access))
+        }
         return chain.proceed(original.withBearer(newAccess))
     }
 

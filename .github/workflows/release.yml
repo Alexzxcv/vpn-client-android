@@ -63,7 +63,10 @@ jobs:
             echo "No APK produced" >&2
             exit 1
           fi
-          echo "path=$APK" >> "$GITHUB_OUTPUT"
+          # Имя с версией, чтобы на телефоне было видно, какой это релиз.
+          DEST="SAPN-VPN-${GITHUB_REF_NAME}.apk"
+          cp "$APK" "$DEST"
+          echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

@@ -19,8 +19,8 @@ android {
         applicationId = "ru.sapn.vpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.1.5"
+        versionCode = 7
+        versionName = "0.1.6"
 
         // База API control-plane. Переопределяется по сборкам ниже.
         // Никаких секретов здесь — только публичный адрес.

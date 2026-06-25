@@ -117,9 +117,11 @@ class AndroidPlatformInterface(
             }
         }
         networkCallback = cb
+        // ВАЖНО: только регистрируем колбэк. НЕ вызываем updateDefaultInterface
+        // синхронно отсюда — это ре-энтрантный заход в нативный sing-box во время
+        // его же нативного вызова startDefaultInterfaceMonitor → краш. Текущую сеть
+        // система пришлёт через onAvailable сразу после регистрации.
         runCatching { cm.registerDefaultNetworkCallback(cb) }
-        // Сразу отдаём текущую активную сеть (колбэк может прийти не мгновенно).
-        runCatching { cm.activeNetwork?.let { pushDefault(cm, it, listener) } }
     }
 
     private fun pushDefault(cm: ConnectivityManager, network: Network, listener: InterfaceUpdateListener) {
@@ -151,7 +153,10 @@ class AndroidPlatformInterface(
                 item.setMTU(runCatching { nif.mtu }.getOrDefault(0))
                 item.setType(Libbox.InterfaceTypeOther)
                 val addrs = nif.interfaceAddresses.mapNotNull { ia ->
-                    ia.address?.hostAddress?.let { "$it/${ia.networkPrefixLength}" }
+                    // Обрезаем IPv6 zone-суффикс ("fe80::...%rmnet_data0"): sing-box
+                    // парсит адрес через netip.ParsePrefix, который не принимает zone
+                    // в префиксе и иначе паникует (SIGABRT) → краш приложения.
+                    ia.address?.hostAddress?.substringBefore('%')?.let { "$it/${ia.networkPrefixLength}" }
                 }
                 item.setAddresses(StringList(addrs))
                 var flags = 0
