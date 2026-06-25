@@ -19,12 +19,15 @@ android {
         applicationId = "ru.sapn.vpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
 
         // База API control-plane. Переопределяется по сборкам ниже.
         // Никаких секретов здесь — только публичный адрес.
         buildConfigField("String", "API_BASE_URL", "\"https://bot.niffty.ru/api/\"")
+        // Веб-дашборд для кнопки «Создать аккаунт» (регистрация в браузере).
+        // Меняем здесь, когда сменится домен/страница регистрации.
+        buildConfigField("String", "DASHBOARD_URL", "\"https://bot.niffty.ru/\"")
 
         // Реальные устройства — только ARM. x86/x86_64 (эмуляторы) не тащим,
         // чтобы вдвое срезать размер APK с нативным sing-box (libbox.so).

@@ -9,42 +9,40 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import ru.sapn.vpn.domain.model.VlessConfig
+import ru.sapn.vpn.domain.model.VpnSettings
 
 /**
- * Сборка JSON-конфига sing-box из [VlessConfig].
+ * Сборка JSON-конфига sing-box из [VlessConfig] (+ [VpnSettings]).
  *
- * sing-box имеет НАТИВНЫЙ tun-inbound, поэтому tun2socks не нужен: дескриптор tun,
- * который создаёт [android.net.VpnService], libbox получает через PlatformInterface
- * (наш [ru.sapn.vpn.vpn.libbox.AndroidPlatformInterface.openTun]).
+ * sing-box имеет НАТИВНЫЙ tun-inbound: дескриптор tun libbox получает через
+ * PlatformInterface ([ru.sapn.vpn.vpn.libbox.AndroidPlatformInterface.openTun]).
+ * Стек — **gvisor** (надёжный userspace-netstack на Android; system-стек требует
+ * привилегий и на Android не заводится → «нет трафика»).
  *
- * Структура зеркалит Windows-клиент (internal/singbox/config.go):
- *  - tun inbound (адрес /30, auto_route, stack=system, sniff DNS);
- *  - vless + reality outbound (tag "vless-out") + direct + block;
+ * Структура зеркалит Windows-клиент:
+ *  - tun inbound (адрес /30, auto_route, stack=gvisor, sniff DNS);
+ *  - vless + reality outbound + direct + block;
  *  - DNS через туннель (анти-leak), strategy ipv4_only;
- *  - route-правило «трафик до самой ноды — напрямую» (иначе петля handshake),
- *    hijack-dns, и блок «голого» IPv6.
+ *  - route: hijack-dns, «нода — напрямую» (ip_cidr, иначе петля handshake),
+ *    RU-direct/direct-list (по настройкам), блок «голого» IPv6.
  *
- * Целевая версия sing-box: 1.11.x (поле tun `address`, новый формат dns/route).
- *
- * ВАЖНО (безопасность): сериализованный конфиг содержит uuid и ключи Reality —
- * НИКОГДА не логируем результат [build]/[buildString].
+ * ВАЖНО (безопасность): конфиг содержит uuid и ключи Reality — НИКОГДА не логируем.
  */
 object SingBoxConfigBuilder {
 
-    /** Имя и адресация tun. /30 в редко используемом диапазоне, чтобы не пересечься с LAN. */
     const val TUN_INTERFACE = "sapn-tun"
     const val TUN_ADDRESS = "172.18.0.1/30"
     const val TUN_MTU = 1500
 
     private val json = Json { prettyPrint = false }
+    private val ipv4Regex = Regex("""^\d{1,3}(\.\d{1,3}){3}(/\d{1,2})?$""")
 
-    fun build(config: VlessConfig): JsonObject = buildJsonObject {
+    fun build(config: VlessConfig, settings: VpnSettings = VpnSettings()): JsonObject = buildJsonObject {
         put("log", buildJsonObject {
-            put("level", "warn")
+            put("level", "info")
             put("timestamp", true)
         })
 
-        // ---- DNS: дефолтный резолвер — через туннель (анти-leak). ----
         putJsonObject("dns") {
             putJsonArray("servers") {
                 addJsonObject {
@@ -59,25 +57,23 @@ object SingBoxConfigBuilder {
                 }
             }
             put("final", "dns-remote")
-            put("strategy", "ipv4_only") // не выдаём AAAA: защита от IPv6 DNS-leak
+            put("strategy", "ipv4_only")
         }
 
-        // ---- Inbounds: единственный tun. FD отдаёт PlatformInterface. ----
         putJsonArray("inbounds") {
             addJsonObject {
                 put("type", "tun")
                 put("tag", "tun-in")
                 put("interface_name", TUN_INTERFACE)
-                putJsonArray("address") { add(TUN_ADDRESS) } // IPv4-only на tun (анти-leak)
+                putJsonArray("address") { add(TUN_ADDRESS) }
                 put("auto_route", true)
                 put("strict_route", true)
-                put("stack", "system")
+                put("stack", "gvisor")
                 put("mtu", TUN_MTU)
-                put("sniff", true) // перехват DNS для hijack-dns
+                put("sniff", true)
             }
         }
 
-        // ---- Outbounds: vless reality + direct + block. ----
         putJsonArray("outbounds") {
             add(buildVlessOutbound(config))
             addJsonObject {
@@ -90,18 +86,47 @@ object SingBoxConfigBuilder {
             }
         }
 
-        // ---- Route. ----
         putJsonObject("route") {
             putJsonArray("rules") {
-                // DNS-запросы перехватываем, чтобы ОС не резолвила мимо туннеля.
+                // DNS-запросы перехватываем.
                 addJsonObject {
                     put("protocol", "dns")
                     put("action", "hijack-dns")
                 }
-                // Трафик до самой ноды — напрямую, иначе handshake уйдёт в петлю.
+                // Трафик до самой ноды — напрямую (нода обычно IP → ip_cidr).
                 addJsonObject {
-                    putJsonArray("domain") { add(config.host) }
+                    if (ipv4Regex.matches(config.host)) {
+                        putJsonArray("ip_cidr") { add(if (config.host.contains("/")) config.host else "${config.host}/32") }
+                    } else {
+                        putJsonArray("domain") { add(config.host) }
+                    }
                     put("outbound", "direct")
+                }
+                // RU-direct: .ru/.су/.рф напрямую.
+                if (settings.russiaDirect) {
+                    addJsonObject {
+                        putJsonArray("domain_suffix") {
+                            add(".ru"); add(".su"); add(".xn--p1ai")
+                        }
+                        put("outbound", "direct")
+                    }
+                }
+                // Ручной direct-list: домены и IP/CIDR.
+                val directDomains = settings.directList.filter { !ipv4Regex.matches(it) }
+                val directIps = settings.directList.filter { ipv4Regex.matches(it) }
+                if (directDomains.isNotEmpty()) {
+                    addJsonObject {
+                        putJsonArray("domain_suffix") { directDomains.forEach { add(it) } }
+                        put("outbound", "direct")
+                    }
+                }
+                if (directIps.isNotEmpty()) {
+                    addJsonObject {
+                        putJsonArray("ip_cidr") {
+                            directIps.forEach { add(if (it.contains("/")) it else "$it/32") }
+                        }
+                        put("outbound", "direct")
+                    }
                 }
                 // Анти-leak: «голый» IPv6 не выпускаем в обход туннеля.
                 addJsonObject {
@@ -114,9 +139,9 @@ object SingBoxConfigBuilder {
         }
     }
 
-    /** То же, но в виде строки JSON (передаётся в libbox). НЕ логировать. */
-    fun buildString(config: VlessConfig): String =
-        json.encodeToString(JsonObject.serializer(), build(config))
+    /** То же, но строкой JSON (передаётся в libbox). НЕ логировать. */
+    fun buildString(config: VlessConfig, settings: VpnSettings = VpnSettings()): String =
+        json.encodeToString(JsonObject.serializer(), build(config, settings))
 
     private fun buildVlessOutbound(config: VlessConfig): JsonObject = buildJsonObject {
         put("type", "vless")

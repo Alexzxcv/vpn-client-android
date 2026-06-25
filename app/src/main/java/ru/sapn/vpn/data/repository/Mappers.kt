@@ -34,7 +34,7 @@ fun SubscriptionResponse.toDomain() =
     )
 
 fun LocationResponse.toDomain() =
-    Location(id = id, name = name, location = location)
+    Location(id = id, name = name, location = location, pingMs = latencyMs)
 
 fun ConfigResponse.toDomain() = VlessConfig(
     host = host,

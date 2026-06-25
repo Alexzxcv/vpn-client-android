@@ -33,6 +33,8 @@ data class Location(
     val id: String,
     val name: String,
     val location: String,
+    /** Пинг ноды (мс), 0 — неизвестно. */
+    val pingMs: Int = 0,
 )
 
 /**

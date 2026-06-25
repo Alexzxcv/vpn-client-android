@@ -1,140 +1,69 @@
 package ru.sapn.vpn.vpn
 
 import android.net.VpnService
-import android.os.ParcelFileDescriptor
 import android.util.Log
 import io.nekohasekai.libbox.BoxService
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.SetupOptions
 import ru.sapn.vpn.domain.model.VlessConfig
+import ru.sapn.vpn.domain.model.VpnSettings
 import ru.sapn.vpn.domain.vpn.VpnEngine
 import ru.sapn.vpn.vpn.libbox.AndroidPlatformInterface
 
 /**
- * VPN-движок на базе sing-box (libbox AAR), VLESS Reality.
+ * VPN-движок на базе sing-box (libbox AAR, sing-box 1.11.x), VLESS Reality.
  *
- * Почему sing-box, а не Xray+tun2socks:
- *  - у sing-box НАТИВНЫЙ tun-inbound: отдельный tun2socks-мост не нужен (одна
- *    зависимость вместо двух, меньше точек отказа);
- *  - libbox строит tun сам через PlatformInterface.openTun, отдавая нам
- *    VpnService.Builder — protect()/маршруты/DNS централизованы в движке;
- *  - формат конфига совпадает с Windows-клиентом (internal/singbox), поэтому
- *    [SingBoxConfigBuilder] зеркалит уже проверенную в бою логику.
- *
- * Текущее состояние: движок СОБИРАЕТ реальный рабочий конфиг sing-box из
- * [VlessConfig] ([SingBoxConfigBuilder]), но фактический запуск libbox.BoxService
- * выполняется только при подключённом AAR (флаг [ENGINE_AAR_AVAILABLE]). Без AAR
- * ведёт себя как безопасная заглушка (туннель не поднимается), чтобы сборка и весь
- * остальной код оставались рабочими.
- *
- * ──────────────────────────────────────────────────────────────────────────
- * КАК ВКЛЮЧИТЬ РЕАЛЬНЫЙ ДВИЖОК (один контролируемый шаг):
- *
- * 1. Собрать libbox.aar (sing-box mobile) на машине с Go+gomobile+Android NDK:
- *      git clone https://github.com/SagerNet/sing-box
- *      cd sing-box
- *      # вариант через Makefile апстрима:
- *      make lib_install      # ставит gomobile
- *      make lib_android      # → libbox.aar (с тегами with_gvisor,with_quic,…)
- *      # или вручную:
- *      go run ./cmd/internal/build_libbox -target android
- *    Скопировать полученный libbox.aar в app/libs/.
- *
- * 2. В app/build.gradle.kts раскомментировать:
- *      implementation(files("libs/libbox.aar"))
- *
- * 3. Раскомментировать тело
- *    app/src/main/java/ru/sapn/vpn/vpn/libbox/AndroidPlatformInterface.kt
- *    и реальный блок запуска ниже в [start] (помечен «РЕАЛЬНЫЙ ПУТЬ (libbox)»).
- *
- * 4. Поставить [ENGINE_AAR_AVAILABLE] = true.
+ * libbox строит tun сам через [AndroidPlatformInterface.openTun] (получая наш
+ * [VpnService.Builder]) и владеет его FD — внешний tun не передаём. protect()
+ * исходящих сокетов движка идёт через autoDetectInterfaceControl (анти-петля
+ * handshake до ноды).
  *
  * Безопасность: configJson содержит uuid/ключи Reality — НИКОГДА его не логируем.
- * ──────────────────────────────────────────────────────────────────────────
  */
 class XrayCoreVpnEngine(
-    /**
-     * Активный VpnService. Нужен libbox-у для protect() сокетов и построения tun
-     * через PlatformInterface. В fallback-режиме не используется.
-     */
-    private val service: VpnService? = null,
+    private val service: VpnService,
 ) : VpnEngine {
 
-    /**
-     * tun, который мог быть передан снаружи (fallback-режим). В реальном режиме
-     * libbox строит tun сам через PlatformInterface и владеет его FD.
-     */
-    private var tun: ParcelFileDescriptor? = null
+    // boxService ← io.nekohasekai.libbox.BoxService
+    // platformIface ← AndroidPlatformInterface (владеет tun FD)
+    private var boxService: BoxService? = null
+    private var platformIface: AndroidPlatformInterface? = null
 
-    // Держатели реального движка. Тип — Any?, чтобы файл компилировался без AAR.
-    // boxService    ← io.nekohasekai.libbox.BoxService
-    // platformIface ← ru.sapn.vpn.vpn.libbox.AndroidPlatformInterface (владеет tun FD)
-    private var boxService: Any? = null
-    private var platformIface: Any? = null
-
-    override fun start(tunFd: ParcelFileDescriptor, config: VlessConfig) {
-        tun = tunFd
-
+    override fun start(config: VlessConfig, settings: VpnSettings) {
         // Собираем реальный конфиг sing-box. Сам объект конфига НЕ логируем.
-        val configJson = SingBoxConfigBuilder.buildString(config)
-        // Лог только нечувствительного: факт старта, хост:порт, размер конфига.
-        Log.i(
-            TAG,
-            "engine start -> ${config.host}:${config.port} (${config.security}), config ${configJson.length}B",
-        )
-
-        val svc = service ?: error("libbox requires an active VpnService")
-
-        // tun, переданный снаружи (предварительный, для валидации разрешения),
-        // libbox-у не нужен: он строит свой через PlatformInterface.openTun.
-        // Закрываем «лишний» дескриптор, чтобы не течь.
-        runCatching { tunFd.close() }
-        tun = null
+        val configJson = SingBoxConfigBuilder.buildString(config, settings)
+        Log.i(TAG, "engine start -> ${config.host}:${config.port} (${config.security}), config ${configJson.length}B")
 
         // Базовая инициализация libbox (однократно за процесс — безопасно повторять).
         Libbox.setup(
             SetupOptions().apply {
-                basePath = svc.filesDir.absolutePath
-                workingPath = svc.filesDir.absolutePath
-                tempPath = svc.cacheDir.absolutePath
+                basePath = service.filesDir.absolutePath
+                workingPath = service.filesDir.absolutePath
+                tempPath = service.cacheDir.absolutePath
             }
         )
 
         val platform = AndroidPlatformInterface(
-            service = svc,
-            newBuilder = { svc.Builder() },
+            service = service,
+            newBuilder = { service.Builder() },
         )
         // Libbox.newService(configContent, platformInterface): BoxService.
         val box = Libbox.newService(configJson, platform)
         box.start() // поднимает tun (через openTun) + sing-box, заворачивает трафик
         boxService = box
         platformIface = platform
+        Log.i(TAG, "engine started")
     }
 
     override fun stop() {
         Log.i(TAG, "engine stop")
-
-        (boxService as? BoxService)?.let { box ->
-            runCatching { box.close() } // останавливает sing-box
-        }
-        (platformIface as? AndroidPlatformInterface)?.let {
-            runCatching { it.close() }  // закрывает tun FD, которым владеет PlatformInterface
-        }
+        boxService?.let { box -> runCatching { box.close() } } // останавливает sing-box
+        platformIface?.let { runCatching { it.close() } }      // закрывает tun FD
         boxService = null
         platformIface = null
-
-        runCatching { tun?.close() }
-        tun = null
     }
 
     private companion object {
         const val TAG = "XrayCoreVpnEngine"
-
-        /**
-         * Флаг наличия бинарного движка. Ставится в true после подключения
-         * libbox.aar и раскомментирования реального пути в [start]/[stop] и в
-         * [ru.sapn.vpn.vpn.libbox.AndroidPlatformInterface].
-         */
-        const val ENGINE_AAR_AVAILABLE = true
     }
 }

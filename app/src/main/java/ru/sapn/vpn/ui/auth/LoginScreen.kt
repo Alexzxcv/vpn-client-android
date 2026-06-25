@@ -16,21 +16,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Intent
+import android.net.Uri
+import ru.sapn.vpn.BuildConfig
 import ru.sapn.vpn.ui.components.Eyebrow
 import ru.sapn.vpn.ui.theme.Sapn
 
 @Composable
 fun LoginScreen(viewModel: AuthViewModel) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -73,6 +79,15 @@ fun LoginScreen(viewModel: AuthViewModel) {
             } else {
                 Text("Войти", style = MaterialTheme.typography.titleMedium)
             }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        TextButton(onClick = {
+            val i = Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.DASHBOARD_URL))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(i) }
+        }) {
+            Text("Создать аккаунт", color = Sapn.Ion)
         }
     }
 }

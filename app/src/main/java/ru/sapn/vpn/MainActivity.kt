@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -34,6 +35,8 @@ import ru.sapn.vpn.ui.auth.AuthViewModel
 import ru.sapn.vpn.ui.auth.LoginScreen
 import ru.sapn.vpn.ui.connection.ConnectionScreen
 import ru.sapn.vpn.ui.connection.ConnectionViewModel
+import ru.sapn.vpn.ui.settings.SettingsScreen
+import ru.sapn.vpn.ui.settings.SettingsViewModel
 import ru.sapn.vpn.ui.theme.Sapn
 import ru.sapn.vpn.ui.theme.SapnTheme
 
@@ -51,6 +54,10 @@ class MainActivity : ComponentActivity() {
 
     private val accountViewModel: AccountViewModel by viewModels {
         AccountViewModel.Factory(container.accountRepository)
+    }
+
+    private val settingsViewModel: SettingsViewModel by viewModels {
+        SettingsViewModel.Factory(container.settingsStore)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,6 +92,7 @@ class MainActivity : ComponentActivity() {
                                         viewModel = accountViewModel,
                                         onLogout = authViewModel::logout,
                                     )
+                                    Tab.Settings -> SettingsScreen(viewModel = settingsViewModel)
                                 }
                             }
                         }
@@ -95,7 +103,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab { Connect, Account }
+private enum class Tab { Connect, Account, Settings }
 
 @Composable
 private fun BottomNav(current: Tab, onSelect: (Tab) -> Unit) {
@@ -122,6 +130,13 @@ private fun BottomNav(current: Tab, onSelect: (Tab) -> Unit) {
             onClick = { onSelect(Tab.Account) },
             icon = { Icon(Icons.Outlined.Person, contentDescription = null) },
             label = { Text("Аккаунт") },
+            colors = colors,
+        )
+        NavigationBarItem(
+            selected = current == Tab.Settings,
+            onClick = { onSelect(Tab.Settings) },
+            icon = { Icon(Icons.Outlined.Tune, contentDescription = null) },
+            label = { Text("Настройки") },
             colors = colors,
         )
     }

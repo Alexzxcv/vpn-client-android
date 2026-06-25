@@ -64,6 +64,8 @@ data class LocationResponse(
     val id: String,
     val name: String,
     val location: String,
+    // RTT ноды (control-plane → нода), мс. 0 — если замеров нет.
+    @SerialName("latency_ms") val latencyMs: Int = 0,
 )
 
 // ---- Devices ----

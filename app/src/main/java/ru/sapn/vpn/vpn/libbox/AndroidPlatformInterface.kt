@@ -2,6 +2,7 @@ package ru.sapn.vpn.vpn.libbox
 
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import io.nekohasekai.libbox.InterfaceUpdateListener
 import io.nekohasekai.libbox.NetworkInterfaceIterator
 import io.nekohasekai.libbox.Notification
@@ -110,8 +111,14 @@ class AndroidPlatformInterface(
         }
     }
 
-    /** Логи sing-box не пробрасываем (анти-leak: конфиг/ключи не должны утечь в Logcat). */
-    override fun writeLog(message: String?) {}
+    /**
+     * Операционные логи sing-box → Logcat (tag "sing-box"), для диагностики.
+     * Это НЕ конфиг и НЕ ключи (их sing-box в лог не пишет), только статусы
+     * inbound/outbound/маршрутов и ошибки соединения.
+     */
+    override fun writeLog(message: String?) {
+        if (!message.isNullOrBlank()) Log.i("sing-box", message)
+    }
 
     override fun useProcFS(): Boolean = false
 

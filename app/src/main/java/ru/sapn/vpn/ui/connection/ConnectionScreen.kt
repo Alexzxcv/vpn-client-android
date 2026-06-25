@@ -142,13 +142,23 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
             onClick = { if (connected) viewModel.disconnect() else viewModel.connect() },
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // --- Маршрут ВЫ → НОДА ---
-        RouteLine(
-            destination = selectedLoc?.name ?: "—",
-            active = vpnState == VpnState.CONNECTED,
-        )
+        // --- Выбранная нода + её пинг ---
+        if (selectedLoc != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    selectedLoc.name,
+                    color = if (vpnState == VpnState.CONNECTED) Sapn.Ok else Sapn.Frost,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (selectedLoc.pingMs > 0) {
+                    Text("   ·   ${selectedLoc.pingMs} ms", color = Sapn.Mute, style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
 
         if (state.error != null) {
             Spacer(Modifier.height(12.dp))
@@ -218,22 +228,6 @@ private fun ConnectDial(state: VpnState, enabled: Boolean, onClick: () -> Unit) 
 }
 
 @Composable
-private fun RouteLine(destination: String, active: Boolean) {
-    val arrow = if (active) Sapn.Ok else Sapn.Faint
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("ВЫ", color = Sapn.Mute, style = MaterialTheme.typography.labelLarge)
-        Text("  ───→  ", color = arrow, style = MaterialTheme.typography.labelLarge)
-        Text(
-            destination,
-            color = if (active) Sapn.Ok else Sapn.Frost,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
 private fun SubscriptionStrip(sub: Subscription?) {
     SapnCard(Modifier.fillMaxWidth()) {
         Row(
@@ -288,9 +282,11 @@ private fun LocationRow(loc: Location, selected: Boolean, onClick: () -> Unit) {
                 Text(loc.name, color = Sapn.Frost, style = MaterialTheme.typography.bodyLarge)
                 Text(loc.location, color = Sapn.Mute, style = MaterialTheme.typography.bodySmall)
             }
-            if (selected) {
-                Text("ВЫБРАНО", color = Sapn.Ion, style = MaterialTheme.typography.labelSmall)
-            }
+            Text(
+                if (loc.pingMs > 0) "${loc.pingMs} ms" else "—",
+                color = if (selected) Sapn.Ion else Sapn.Mute,
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }

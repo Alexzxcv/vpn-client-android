@@ -1,7 +1,7 @@
 package ru.sapn.vpn.domain.vpn
 
-import android.os.ParcelFileDescriptor
 import ru.sapn.vpn.domain.model.VlessConfig
+import ru.sapn.vpn.domain.model.VpnSettings
 
 /** Состояние VPN-туннеля. */
 enum class VpnState {
@@ -12,22 +12,17 @@ enum class VpnState {
 }
 
 /**
- * Абстракция бинарного VPN-движка (Xray-core / sing-box).
+ * Абстракция VPN-движка (sing-box / libbox).
  *
- * Реализация принимает уже открытый tun-дескриптор (его готовит [android.net.VpnService])
- * и [VlessConfig], собирает из них рабочий конфиг движка и поднимает прокси внутри процесса,
- * заворачивая трафик из tun в VLESS Reality.
+ * Движок сам строит tun через VpnService (libbox.PlatformInterface.openTun) из
+ * [VlessConfig] и заворачивает трафик в VLESS Reality. tun снаружи НЕ передаётся —
+ * иначе на Android получаются два конкурирующих establish() (см. историю #2).
  *
- * Реализация — [ru.sapn.vpn.vpn.XrayCoreVpnEngine] (sing-box/libbox). Без AAR она
- * работает как безопасная заглушка; подключение реального движка — см. её KDoc.
+ * Реализация — [ru.sapn.vpn.vpn.XrayCoreVpnEngine].
  */
 interface VpnEngine {
-    /**
-     * Запустить движок.
-     * @param tunFd дескриптор tun-интерфейса от VpnService.establish().
-     * @param config параметры VLESS Reality ноды.
-     */
-    fun start(tunFd: ParcelFileDescriptor, config: VlessConfig)
+    /** Запустить движок: поднять tun + sing-box по [config] и [settings]. Бросает при ошибке. */
+    fun start(config: VlessConfig, settings: VpnSettings)
 
     /** Остановить движок и освободить ресурсы. */
     fun stop()
