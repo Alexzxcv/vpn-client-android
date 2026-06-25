@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.sapn.vpn.BuildConfig
+import ru.sapn.vpn.R
 import ru.sapn.vpn.data.local.CustomServerStore
 import ru.sapn.vpn.domain.model.CustomServer
 import ru.sapn.vpn.domain.model.Location
@@ -63,6 +64,9 @@ class ConnectionViewModel(
     private val _ui = MutableStateFlow(ConnectionUiState())
     val ui: StateFlow<ConnectionUiState> = _ui.asStateFlow()
 
+    private fun str(resId: Int): String = getApplication<Application>().getString(resId)
+    private fun str(resId: Int, vararg args: Any): String = getApplication<Application>().getString(resId, *args)
+
     private val _update = MutableStateFlow<AppUpdate?>(null)
     val update: StateFlow<AppUpdate?> = _update.asStateFlow()
 
@@ -106,7 +110,7 @@ class ConnectionViewModel(
                     _ui.value = _ui.value.copy(
                         loading = false,
                         subscription = sub,
-                        error = e.message ?: "Не удалось загрузить локации",
+                        error = e.message ?: str(R.string.connect_error_load_locations),
                     )
                 }
         }
@@ -142,7 +146,7 @@ class ConnectionViewModel(
                 }
             },
             onFailure = { e ->
-                _ui.value = _ui.value.copy(customError = e.message ?: "Некорректная ссылка")
+                _ui.value = _ui.value.copy(customError = e.message ?: str(R.string.connect_error_invalid_link))
             },
         )
     }
@@ -169,13 +173,13 @@ class ConnectionViewModel(
                     }
                 }
                 if (added == 0) {
-                    _ui.value = _ui.value.copy(customError = "В подписке не найдено vless-конфигов")
+                    _ui.value = _ui.value.copy(customError = str(R.string.connect_error_no_configs_in_subscription))
                 } else {
                     _ui.value = _ui.value.copy(customError = null)
                     loadCustomServers()
                 }
             }.onFailure { e ->
-                _ui.value = _ui.value.copy(customError = "Не удалось загрузить подписку: ${e.message}")
+                _ui.value = _ui.value.copy(customError = str(R.string.connect_error_load_subscription, e.message ?: ""))
             }
         }
     }
@@ -226,7 +230,7 @@ class ConnectionViewModel(
                     scheduleRefresh(config)
                 }
                 .onFailure { e ->
-                    _ui.value = _ui.value.copy(loading = false, error = e.message ?: "Не удалось переключить ноду")
+                    _ui.value = _ui.value.copy(loading = false, error = e.message ?: str(R.string.connect_error_switch_node))
                 }
         }
     }
@@ -244,7 +248,7 @@ class ConnectionViewModel(
             if (bind.isFailure) {
                 _ui.value = _ui.value.copy(
                     loading = false,
-                    error = bind.exceptionOrNull()?.message ?: "Не удалось привязать устройство",
+                    error = bind.exceptionOrNull()?.message ?: str(R.string.connect_error_bind_device),
                 )
                 return@launch
             }
@@ -256,7 +260,7 @@ class ConnectionViewModel(
     fun onVpnPermissionResult(granted: Boolean) {
         _ui.value = _ui.value.copy(needsVpnPermission = false)
         if (!granted) {
-            _ui.value = _ui.value.copy(error = "Нет разрешения на VPN")
+            _ui.value = _ui.value.copy(error = str(R.string.connect_error_no_vpn_permission))
             return
         }
         val sel = _ui.value.selectedLocationId
@@ -274,7 +278,7 @@ class ConnectionViewModel(
                     scheduleRefresh(config)
                 }
                 .onFailure { e ->
-                    _ui.value = _ui.value.copy(loading = false, error = e.message ?: "Не удалось получить конфиг")
+                    _ui.value = _ui.value.copy(loading = false, error = e.message ?: str(R.string.connect_error_fetch_config))
                 }
         }
     }
@@ -302,7 +306,7 @@ class ConnectionViewModel(
                     scheduleRefresh(fresh)
                 }
                 .onFailure { e ->
-                    _ui.value = _ui.value.copy(error = e.message ?: "Не удалось обновить конфиг")
+                    _ui.value = _ui.value.copy(error = e.message ?: str(R.string.connect_error_refresh_config))
                 }
         }
     }

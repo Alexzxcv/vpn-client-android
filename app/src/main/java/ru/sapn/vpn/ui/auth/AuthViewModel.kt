@@ -1,5 +1,7 @@
 package ru.sapn.vpn.ui.auth
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -9,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import ru.sapn.vpn.R
 import ru.sapn.vpn.domain.repository.AuthRepository
 
 data class AuthUiState(
@@ -19,8 +22,9 @@ data class AuthUiState(
 )
 
 class AuthViewModel(
+    app: Application,
     private val authRepository: AuthRepository,
-) : ViewModel() {
+) : AndroidViewModel(app) {
 
     private val _ui = MutableStateFlow(AuthUiState())
     val ui: StateFlow<AuthUiState> = _ui.asStateFlow()
@@ -34,7 +38,7 @@ class AuthViewModel(
     fun login() {
         val state = _ui.value
         if (state.login.isBlank() || state.password.isBlank()) {
-            _ui.update { it.copy(error = "Введите логин и пароль") }
+            _ui.update { it.copy(error = getApplication<Application>().getString(R.string.auth_error_enter_credentials)) }
             return
         }
         viewModelScope.launch {
@@ -42,7 +46,7 @@ class AuthViewModel(
             authRepository.login(state.login.trim(), state.password)
                 .onSuccess { _ui.update { s -> s.copy(loading = false, password = "") } }
                 .onFailure { e ->
-                    _ui.update { s -> s.copy(loading = false, error = e.message ?: "Ошибка входа") }
+                    _ui.update { s -> s.copy(loading = false, error = e.message ?: getApplication<Application>().getString(R.string.auth_error_login_failed)) }
                 }
         }
     }
@@ -55,9 +59,12 @@ class AuthViewModel(
         value = block(value)
     }
 
-    class Factory(private val authRepository: AuthRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val app: Application,
+        private val authRepository: AuthRepository,
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AuthViewModel(authRepository) as T
+            AuthViewModel(app, authRepository) as T
     }
 }

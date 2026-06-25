@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.sapn.vpn.ui.account.AccountScreen
 import ru.sapn.vpn.ui.account.AccountViewModel
@@ -47,7 +48,7 @@ class MainActivity : ComponentActivity() {
     private val container by lazy { (application as SapnApp).container }
 
     private val authViewModel: AuthViewModel by viewModels {
-        AuthViewModel.Factory(container.authRepository)
+        AuthViewModel.Factory(application, container.authRepository)
     }
 
     private val connectionViewModel: ConnectionViewModel by viewModels {
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val accountViewModel: AccountViewModel by viewModels {
-        AccountViewModel.Factory(container.accountRepository)
+        AccountViewModel.Factory(application, container.accountRepository)
     }
 
     private val settingsViewModel: SettingsViewModel by viewModels {
@@ -143,21 +144,21 @@ private fun BottomNav(current: Tab, onSelect: (Tab) -> Unit) {
             selected = current == Tab.Connect,
             onClick = { onSelect(Tab.Connect) },
             icon = { Icon(Icons.Outlined.Bolt, contentDescription = null) },
-            label = { Text("Подключение") },
+            label = { Text(stringResource(R.string.nav_connect)) },
             colors = colors,
         )
         NavigationBarItem(
             selected = current == Tab.Account,
             onClick = { onSelect(Tab.Account) },
             icon = { Icon(Icons.Outlined.Person, contentDescription = null) },
-            label = { Text("Аккаунт") },
+            label = { Text(stringResource(R.string.nav_account)) },
             colors = colors,
         )
         NavigationBarItem(
             selected = current == Tab.Settings,
             onClick = { onSelect(Tab.Settings) },
             icon = { Icon(Icons.Outlined.Tune, contentDescription = null) },
-            label = { Text("Настройки") },
+            label = { Text(stringResource(R.string.nav_settings)) },
             colors = colors,
         )
     }

@@ -49,7 +49,7 @@ class XrayVpnService : VpnService() {
     private fun startTunnel(config: VlessConfig?) {
         if (config == null) {
             Log.w(TAG, "startTunnel: no config")
-            VpnController.fail("Нет сохранённой конфигурации — подключитесь из приложения")
+            VpnController.fail(getString(R.string.vpn_error_no_config))
             stopSelf()
             return
         }
@@ -105,7 +105,7 @@ class XrayVpnService : VpnService() {
         }
         return Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText("VPN активен")
+            .setContentText(getString(R.string.vpn_notification_active))
             .setSmallIcon(R.drawable.ic_tile_vpn)
             .setOngoing(true)
             .build()

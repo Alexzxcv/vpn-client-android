@@ -10,24 +10,35 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.provider.Settings
+import ru.sapn.vpn.R
 import ru.sapn.vpn.ui.components.Eyebrow
 import ru.sapn.vpn.ui.components.SapnCard
 import ru.sapn.vpn.ui.theme.Sapn
@@ -47,7 +58,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
             .padding(top = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Настройки", style = MaterialTheme.typography.headlineMedium, color = Sapn.Frost)
+        Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = Sapn.Frost)
+
+        // ---- Язык / Language ----
+        LanguageCard()
 
         // ---- Kill switch / Always-on ----
         SapnCard(Modifier.fillMaxWidth().clickable {
@@ -60,14 +74,14 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Kill switch (Always-on)", color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_kill_switch_title), color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Открыть системные настройки VPN. Включите «Постоянный VPN» и «Блокировать соединения без VPN» — трафик не пойдёт в обход туннеля.",
+                        stringResource(R.string.settings_kill_switch_desc),
                         color = Sapn.Mute,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                Text("›", color = Sapn.Faint, style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.settings_chevron), color = Sapn.Faint, style = MaterialTheme.typography.titleLarge)
             }
         }
 
@@ -79,14 +93,14 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Приложения через VPN", color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_per_app_title), color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Выбрать, какие приложения идут через туннель (split tunneling)",
+                        stringResource(R.string.settings_per_app_desc),
                         color = Sapn.Mute,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                Text("›", color = Sapn.Faint, style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.settings_chevron), color = Sapn.Faint, style = MaterialTheme.typography.titleLarge)
             }
         }
 
@@ -98,9 +112,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Российские сайты напрямую", color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_russia_direct_title), color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        ".ru / .рф / .su идут мимо туннеля",
+                        stringResource(R.string.settings_russia_direct_desc),
                         color = Sapn.Mute,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -121,10 +135,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
 
         // ---- Direct list (split tunnel) ----
         SapnCard(Modifier.fillMaxWidth()) {
-            Eyebrow("Direct list (split tunnel)")
+            Eyebrow(stringResource(R.string.settings_direct_list_title))
             Spacer(Modifier.height(6.dp))
             Text(
-                "По одной записи в строке: домены (example.com, .ru) или IP/CIDR (10.0.0.0/8). Идут напрямую, мимо туннеля.",
+                stringResource(R.string.settings_direct_list_desc),
                 color = Sapn.Mute,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -134,7 +148,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
                 onValueChange = viewModel::setDirectList,
                 modifier = Modifier.fillMaxWidth().height(140.dp),
                 singleLine = false,
-                placeholder = { Text(".ru\nexample.com\n10.0.0.0/8", color = Sapn.Faint) },
+                placeholder = { Text(stringResource(R.string.settings_direct_list_placeholder), color = Sapn.Faint) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Sapn.Ion,
                     unfocusedBorderColor = Sapn.Hairline,
@@ -146,7 +160,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
         }
 
         Text(
-            "Порт локального прокси на Android не настраивается: туннель полностью на стороне sing-box.",
+            stringResource(R.string.settings_proxy_note),
             color = Sapn.Faint,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -155,12 +169,98 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
             onClick = viewModel::save,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Sapn.Ion, contentColor = Sapn.Void),
-        ) { Text(if (state.saved) "Сохранено ✓" else "Сохранить") }
+        ) { Text(if (state.saved) stringResource(R.string.settings_saved) else stringResource(R.string.settings_save)) }
 
         Text(
-            "Изменения применяются при следующем подключении.",
+            stringResource(R.string.settings_apply_note),
             color = Sapn.Faint,
             style = MaterialTheme.typography.bodySmall,
         )
+    }
+}
+
+/**
+ * Карточка выбора языка приложения (System / Русский / English). Хранение per-app
+ * локали бэкпортится appcompat (AppLocalesMetadataHolderService в манифесте), так
+ * что AppCompatActivity не требуется.
+ */
+@Composable
+private fun LanguageCard() {
+    var showDialog by remember { mutableStateOf(false) }
+
+    // "" — System (пустой список локалей), иначе тег языка ("ru"/"en").
+    val current = AppCompatDelegate.getApplicationLocales().toLanguageTags().substringBefore('-')
+    val currentTag = when (current) {
+        "ru" -> "ru"
+        "en" -> "en"
+        else -> ""
+    }
+
+    SapnCard(Modifier.fillMaxWidth().clickable { showDialog = true }) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_language_title), color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    when (currentTag) {
+                        "ru" -> stringResource(R.string.settings_language_russian)
+                        "en" -> stringResource(R.string.settings_language_english)
+                        else -> stringResource(R.string.settings_language_system)
+                    },
+                    color = Sapn.Mute,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Text(stringResource(R.string.settings_chevron), color = Sapn.Faint, style = MaterialTheme.typography.titleLarge)
+        }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            containerColor = Sapn.Slate,
+            titleContentColor = Sapn.Frost,
+            textContentColor = Sapn.Mute,
+            title = { Text(stringResource(R.string.settings_language_dialog_title)) },
+            text = {
+                Column {
+                    LanguageOption(stringResource(R.string.settings_language_system), currentTag == "") {
+                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
+                        showDialog = false
+                    }
+                    LanguageOption(stringResource(R.string.settings_language_russian), currentTag == "ru") {
+                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("ru"))
+                        showDialog = false
+                    }
+                    LanguageOption(stringResource(R.string.settings_language_english), currentTag == "en") {
+                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("en"))
+                        showDialog = false
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text(stringResource(R.string.custom_dialog_cancel), color = Sapn.Mute)
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun LanguageOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(selectedColor = Sapn.Ion, unselectedColor = Sapn.Faint),
+        )
+        Text(label, color = Sapn.Frost, style = MaterialTheme.typography.bodyLarge)
     }
 }

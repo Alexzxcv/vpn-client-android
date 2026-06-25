@@ -29,9 +29,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.sapn.vpn.R
 import ru.sapn.vpn.domain.model.AppRoutingMode
 import ru.sapn.vpn.ui.components.Eyebrow
 import ru.sapn.vpn.ui.theme.Sapn
@@ -46,13 +48,13 @@ fun PerAppScreen(viewModel: PerAppViewModel, onBack: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Назад",
+                contentDescription = stringResource(R.string.perapp_back),
                 tint = Sapn.Frost,
                 modifier = Modifier.height(22.dp).clickable(onClick = onBack),
             )
             Spacer(Modifier.fillMaxWidth(0f).height(0.dp))
             Text(
-                "  Приложения через VPN",
+                "  " + stringResource(R.string.perapp_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = Sapn.Frost,
             )
@@ -61,12 +63,12 @@ fun PerAppScreen(viewModel: PerAppViewModel, onBack: () -> Unit) {
         Spacer(Modifier.height(16.dp))
 
         // Режим.
-        Eyebrow("Режим")
+        Eyebrow(stringResource(R.string.perapp_section_mode))
         Spacer(Modifier.height(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ModeRow("Все приложения через VPN", state.mode == AppRoutingMode.OFF) { viewModel.setMode(AppRoutingMode.OFF) }
-            ModeRow("Только выбранные через VPN", state.mode == AppRoutingMode.INCLUDE) { viewModel.setMode(AppRoutingMode.INCLUDE) }
-            ModeRow("Все, кроме выбранных", state.mode == AppRoutingMode.EXCLUDE) { viewModel.setMode(AppRoutingMode.EXCLUDE) }
+            ModeRow(stringResource(R.string.perapp_mode_all), state.mode == AppRoutingMode.OFF) { viewModel.setMode(AppRoutingMode.OFF) }
+            ModeRow(stringResource(R.string.perapp_mode_include), state.mode == AppRoutingMode.INCLUDE) { viewModel.setMode(AppRoutingMode.INCLUDE) }
+            ModeRow(stringResource(R.string.perapp_mode_exclude), state.mode == AppRoutingMode.EXCLUDE) { viewModel.setMode(AppRoutingMode.EXCLUDE) }
         }
 
         if (state.mode != AppRoutingMode.OFF) {
@@ -76,7 +78,7 @@ fun PerAppScreen(viewModel: PerAppViewModel, onBack: () -> Unit) {
                 onValueChange = viewModel::setQuery,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("Поиск приложения", color = Sapn.Faint) },
+                placeholder = { Text(stringResource(R.string.perapp_search), color = Sapn.Faint) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Sapn.Ion,
                     unfocusedBorderColor = Sapn.Hairline,
@@ -109,7 +111,7 @@ fun PerAppScreen(viewModel: PerAppViewModel, onBack: () -> Unit) {
         } else {
             Spacer(Modifier.height(16.dp))
             Text(
-                "Весь трафик устройства идёт через VPN. Выберите режим выше, чтобы маршрутизировать отдельные приложения.",
+                stringResource(R.string.perapp_off_hint),
                 color = Sapn.Mute,
                 style = MaterialTheme.typography.bodySmall,
             )

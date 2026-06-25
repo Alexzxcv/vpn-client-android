@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -30,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.net.Uri
 import ru.sapn.vpn.BuildConfig
+import ru.sapn.vpn.R
 import ru.sapn.vpn.ui.components.Eyebrow
 import ru.sapn.vpn.ui.theme.Sapn
 
@@ -49,12 +51,12 @@ fun LoginScreen(viewModel: AuthViewModel) {
     ) {
         Text("SAPN", style = MaterialTheme.typography.headlineMedium, color = Sapn.Frost)
         Spacer(Modifier.height(6.dp))
-        Eyebrow("Приватный доступ")
+        Eyebrow(stringResource(R.string.login_eyebrow))
         Spacer(Modifier.height(40.dp))
 
-        Field(state.login, viewModel::onLoginChange, "Email или логин")
+        Field(state.login, viewModel::onLoginChange, stringResource(R.string.login_field_login))
         Spacer(Modifier.height(12.dp))
-        Field(state.password, viewModel::onPasswordChange, "Пароль", password = true)
+        Field(state.password, viewModel::onPasswordChange, stringResource(R.string.login_field_password), password = true)
 
         state.error?.let {
             Spacer(Modifier.height(12.dp))
@@ -77,7 +79,7 @@ fun LoginScreen(viewModel: AuthViewModel) {
             if (state.loading) {
                 CircularProgressIndicator(color = Sapn.Void, strokeWidth = 2.dp, modifier = Modifier.height(20.dp))
             } else {
-                Text("Войти", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.login_sign_in), style = MaterialTheme.typography.titleMedium)
             }
         }
 
@@ -87,7 +89,7 @@ fun LoginScreen(viewModel: AuthViewModel) {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             runCatching { context.startActivity(i) }
         }) {
-            Text("Создать аккаунт", color = Sapn.Ion)
+            Text(stringResource(R.string.login_create_account), color = Sapn.Ion)
         }
     }
 }

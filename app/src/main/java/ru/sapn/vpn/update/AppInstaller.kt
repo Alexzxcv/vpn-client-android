@@ -10,6 +10,7 @@ import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import ru.sapn.vpn.R
 
 /**
  * Скачивает APK обновления через системный DownloadManager (умеет редиректы
@@ -35,8 +36,8 @@ object AppInstaller {
 
         val request = runCatching {
             DownloadManager.Request(Uri.parse(url))
-                .setTitle("SAPN VPN $versionName")
-                .setDescription("Загрузка обновления…")
+                .setTitle(appCtx.getString(R.string.update_download_title, versionName))
+                .setDescription(appCtx.getString(R.string.update_download_description))
                 .setMimeType(MIME)
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalFilesDir(appCtx, Environment.DIRECTORY_DOWNLOADS, "sapn-update.apk")
@@ -49,7 +50,7 @@ object AppInstaller {
             fallbackOpen(appCtx, url)
             return
         }
-        Toast.makeText(appCtx, "Загрузка обновления…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(appCtx, appCtx.getString(R.string.update_downloading), Toast.LENGTH_SHORT).show()
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
@@ -59,7 +60,7 @@ object AppInstaller {
                 val uri = runCatching { dm.getUriForDownloadedFile(id) }.getOrNull()
                 if (uri == null) {
                     Log.w(TAG, "downloaded file uri is null")
-                    Toast.makeText(appCtx, "Не удалось установить обновление", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(appCtx, appCtx.getString(R.string.update_install_failed), Toast.LENGTH_SHORT).show()
                     return
                 }
                 val install = Intent(Intent.ACTION_VIEW)

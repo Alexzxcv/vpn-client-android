@@ -47,9 +47,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.sapn.vpn.R
 import ru.sapn.vpn.domain.model.CustomServer
 import ru.sapn.vpn.domain.model.Location
 import ru.sapn.vpn.domain.model.Subscription
@@ -132,15 +134,15 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Доступно обновление v${upd.versionName}",
+                        stringResource(R.string.connect_update_available, upd.versionName),
                         color = Sapn.Frost,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = { viewModel.dismissUpdate() }) { Text("Позже", color = Sapn.Mute) }
+                    TextButton(onClick = { viewModel.dismissUpdate() }) { Text(stringResource(R.string.connect_update_later), color = Sapn.Mute) }
                     TextButton(onClick = {
                         AppInstaller.downloadAndInstall(context, upd.apkUrl, upd.versionName)
-                    }) { Text("Обновить", color = Sapn.Ion) }
+                    }) { Text(stringResource(R.string.connect_update_now), color = Sapn.Ion) }
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -168,7 +170,7 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (selectedLoc.pingMs > 0) {
-                    Text("   ·   ${selectedLoc.pingMs} ms", color = Sapn.Mute, style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.connect_ping_ms, selectedLoc.pingMs), color = Sapn.Mute, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -177,7 +179,7 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
         if (shownError != null) {
             Spacer(Modifier.height(12.dp))
             Text(
-                "Ошибка: $shownError",
+                stringResource(R.string.connect_error_prefix, shownError),
                 color = Sapn.Alert,
                 style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Alert),
             )
@@ -191,10 +193,10 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
         Spacer(Modifier.height(20.dp))
 
         // --- Локации ---
-        Eyebrow("Локация", Modifier.fillMaxWidth())
+        Eyebrow(stringResource(R.string.connect_section_location), Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
         if (state.locations.isEmpty()) {
-            Text("Нет доступных локаций", color = Sapn.Mute, style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.connect_no_locations), color = Sapn.Mute, style = MaterialTheme.typography.bodySmall)
         }
         state.locations.forEach { loc ->
             LocationRow(
@@ -212,9 +214,9 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Eyebrow("Свои конфиги")
+            Eyebrow(stringResource(R.string.connect_section_custom))
             Text(
-                "+ Добавить",
+                stringResource(R.string.connect_add),
                 color = Sapn.Ion,
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.clickable { showAddDialog = true },
@@ -223,7 +225,7 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
         Spacer(Modifier.height(10.dp))
         if (state.customServers.isEmpty()) {
             Text(
-                "Вставьте свою vless:// ссылку, чтобы подключаться к своему серверу.",
+                stringResource(R.string.connect_custom_hint),
                 color = Sapn.Mute,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -285,7 +287,7 @@ private fun ConnectDial(state: VpnState, enabled: Boolean, onClick: () -> Unit) 
                 )
             }
             Spacer(Modifier.height(12.dp))
-            Text(stateLabel(state).uppercase(), color = ring, style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(stateLabel(state)).uppercase(), color = ring, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -297,25 +299,26 @@ private fun SubscriptionStrip(sub: Subscription?) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            val plan = sub?.plan?.replaceFirstChar { it.uppercase() } ?: "—"
+            val dash = stringResource(R.string.connect_dash)
+            val plan = sub?.plan?.replaceFirstChar { it.uppercase() } ?: dash
             val active = sub?.active == true
             Metric(
-                "Тариф",
-                if (sub == null) "—" else "$plan",
+                stringResource(R.string.connect_subscription_plan),
+                if (sub == null) dash else "$plan",
                 valueColor = if (active) Sapn.Frost else Sapn.Warn,
             )
             Metric(
-                "Трафик",
-                if (sub == null) "—" else "${formatBytes(sub.trafficUsedBytes)} / ${formatBytes(sub.trafficLimitBytes)}",
+                stringResource(R.string.connect_subscription_traffic),
+                if (sub == null) dash else "${formatBytes(sub.trafficUsedBytes)} / ${formatBytes(sub.trafficLimitBytes)}",
             )
             Metric(
-                "Устройства",
-                if (sub == null) "—" else "${sub.deviceLimit}",
+                stringResource(R.string.connect_subscription_devices),
+                if (sub == null) dash else "${sub.deviceLimit}",
             )
         }
         if (sub != null && !sub.active) {
             Spacer(Modifier.height(10.dp))
-            Text("Подписка неактивна", color = Sapn.Warn, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Warn))
+            Text(stringResource(R.string.connect_subscription_inactive), color = Sapn.Warn, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Warn))
         }
     }
 }
@@ -346,7 +349,7 @@ private fun LocationRow(loc: Location, selected: Boolean, onClick: () -> Unit) {
                 Text(loc.location, color = Sapn.Mute, style = MaterialTheme.typography.bodySmall)
             }
             Text(
-                if (loc.pingMs > 0) "${loc.pingMs} ms" else "—",
+                if (loc.pingMs > 0) stringResource(R.string.connect_ms, loc.pingMs) else stringResource(R.string.connect_dash),
                 color = if (selected) Sapn.Ion else Sapn.Mute,
                 style = MaterialTheme.typography.labelLarge,
             )
@@ -375,7 +378,7 @@ private fun CustomRow(server: CustomServer, selected: Boolean, onClick: () -> Un
             }
             Icon(
                 Icons.Outlined.Delete,
-                contentDescription = "Удалить",
+                contentDescription = stringResource(R.string.custom_delete),
                 tint = Sapn.Faint,
                 modifier = Modifier.size(20.dp).clickable(onClick = onDelete),
             )
@@ -387,6 +390,7 @@ private fun CustomRow(server: CustomServer, selected: Boolean, onClick: () -> Un
 private fun AddCustomDialog(error: String?, onAdd: (String) -> Unit, onDismiss: () -> Unit) {
     var link by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
+    val scanPrompt = stringResource(R.string.custom_dialog_scan_prompt)
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         result.contents?.let { link = it }
     }
@@ -395,11 +399,11 @@ private fun AddCustomDialog(error: String?, onAdd: (String) -> Unit, onDismiss: 
         containerColor = Sapn.Slate,
         titleContentColor = Sapn.Frost,
         textContentColor = Sapn.Mute,
-        title = { Text("Свой конфиг") },
+        title = { Text(stringResource(R.string.custom_dialog_title)) },
         text = {
             Column {
                 Text(
-                    "Ссылка vless://… или ссылка-подписка (http/https).",
+                    stringResource(R.string.custom_dialog_desc),
                     color = Sapn.Mute,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -408,7 +412,7 @@ private fun AddCustomDialog(error: String?, onAdd: (String) -> Unit, onDismiss: 
                     value = link,
                     onValueChange = { link = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("vless://uuid@host:443?... или https://sub…", color = Sapn.Faint) },
+                    placeholder = { Text(stringResource(R.string.custom_dialog_placeholder), color = Sapn.Faint) },
                     minLines = 2,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Sapn.Ion,
@@ -421,17 +425,17 @@ private fun AddCustomDialog(error: String?, onAdd: (String) -> Unit, onDismiss: 
                 Spacer(Modifier.height(6.dp))
                 Row {
                     TextButton(onClick = { clipboard.getText()?.text?.let { link = it } }) {
-                        Text("Вставить", color = Sapn.Ion, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Ion))
+                        Text(stringResource(R.string.custom_dialog_paste), color = Sapn.Ion, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Ion))
                     }
                     TextButton(onClick = {
                         val opts = ScanOptions()
                             .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                             .setOrientationLocked(false)
                             .setBeepEnabled(false)
-                            .setPrompt("Наведите на QR с vless-ссылкой")
+                            .setPrompt(scanPrompt)
                         scanLauncher.launch(opts)
                     }) {
-                        Text("Скан QR", color = Sapn.Ion, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Ion))
+                        Text(stringResource(R.string.custom_dialog_scan_qr), color = Sapn.Ion, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Ion))
                     }
                 }
                 if (error != null) {
@@ -442,18 +446,18 @@ private fun AddCustomDialog(error: String?, onAdd: (String) -> Unit, onDismiss: 
         },
         confirmButton = {
             TextButton(onClick = { if (link.isNotBlank()) onAdd(link) }) {
-                Text("Добавить", color = Sapn.Ion)
+                Text(stringResource(R.string.custom_dialog_add), color = Sapn.Ion)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена", color = Sapn.Mute) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.custom_dialog_cancel), color = Sapn.Mute) }
         },
     )
 }
 
-private fun stateLabel(s: VpnState): String = when (s) {
-    VpnState.DISCONNECTED -> "Отключено"
-    VpnState.CONNECTING -> "Подключение"
-    VpnState.CONNECTED -> "Подключено"
-    VpnState.ERROR -> "Ошибка"
+private fun stateLabel(s: VpnState): Int = when (s) {
+    VpnState.DISCONNECTED -> R.string.connect_state_disconnected
+    VpnState.CONNECTING -> R.string.connect_state_connecting
+    VpnState.CONNECTED -> R.string.connect_state_connected
+    VpnState.ERROR -> R.string.connect_state_error
 }

@@ -1,7 +1,149 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App / system -->
     <string name="app_name">SAPN VPN</string>
     <string name="vpn_notification_channel">SAPN VPN</string>
     <string name="tile_label">SAPN VPN</string>
     <string name="tile_subtitle">VPN</string>
+    <string name="vpn_notification_active">VPN active</string>
+
+    <!-- Login screen -->
+    <string name="login_eyebrow">Private access</string>
+    <string name="login_field_login">Email or username</string>
+    <string name="login_field_password">Password</string>
+    <string name="login_sign_in">Sign in</string>
+    <string name="login_create_account">Create account</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_connect">Connect</string>
+    <string name="nav_account">Account</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Connection screen -->
+    <string name="connect_update_available">Update v%1$s available</string>
+    <string name="connect_update_later">Later</string>
+    <string name="connect_update_now">Update</string>
+    <string name="connect_ping_ms">   ·   %1$d ms</string>
+    <string name="connect_error_prefix">Error: %1$s</string>
+    <string name="connect_section_location">Location</string>
+    <string name="connect_no_locations">No locations available</string>
+    <string name="connect_section_custom">Custom configs</string>
+    <string name="connect_add">+ Add</string>
+    <string name="connect_custom_hint">Paste your own vless:// link to connect to your own server.</string>
+    <string name="connect_subscription_plan">Plan</string>
+    <string name="connect_subscription_traffic">Traffic</string>
+    <string name="connect_subscription_devices">Devices</string>
+    <string name="connect_subscription_inactive">Subscription inactive</string>
+    <string name="connect_dash">—</string>
+    <string name="connect_ms">%1$d ms</string>
+
+    <!-- Connection state labels -->
+    <string name="connect_state_disconnected">Disconnected</string>
+    <string name="connect_state_connecting">Connecting</string>
+    <string name="connect_state_connected">Connected</string>
+    <string name="connect_state_error">Error</string>
+
+    <!-- Custom config dialog -->
+    <string name="custom_dialog_title">Custom config</string>
+    <string name="custom_dialog_desc">A vless://… link or a subscription link (http/https).</string>
+    <string name="custom_dialog_placeholder">vless://uuid@host:443?… or https://sub…</string>
+    <string name="custom_dialog_paste">Paste</string>
+    <string name="custom_dialog_scan_qr">Scan QR</string>
+    <string name="custom_dialog_scan_prompt">Point the camera at a QR with a vless link</string>
+    <string name="custom_dialog_add">Add</string>
+    <string name="custom_dialog_cancel">Cancel</string>
+    <string name="custom_delete">Delete</string>
+
+    <!-- Account screen -->
+    <string name="account_title">Account</string>
+    <string name="account_logout">Sign out</string>
+    <string name="account_section_profile">Profile</string>
+    <string name="account_field_email">Email</string>
+    <string name="account_field_username">Username</string>
+    <string name="account_saved">Saved</string>
+    <string name="account_save_profile">Save profile</string>
+    <string name="account_section_password">Change password</string>
+    <string name="account_field_current_password">Current password</string>
+    <string name="account_field_new_password">New password</string>
+    <string name="account_field_repeat_password">Repeat new password</string>
+    <string name="account_password_changed">Password changed</string>
+    <string name="account_change_password">Change password</string>
+    <string name="account_section_devices">Devices</string>
+    <string name="account_no_devices">No linked devices</string>
+    <string name="account_device_unnamed">Device</string>
+    <string name="account_device_blocked">blocked</string>
+    <string name="account_device_last_seen">active %1$s</string>
+    <string name="account_device_separator"> • </string>
+    <string name="account_revoke_device">Revoke device</string>
+
+    <!-- Account errors -->
+    <string name="account_error_fill_one_field">Fill in at least one field</string>
+    <string name="account_error_invalid_email">Invalid email</string>
+    <string name="account_error_no_changes">No changes</string>
+    <string name="account_error_email_or_username_taken">Email or username already taken</string>
+    <string name="account_error_session_expired">Session expired, sign in again</string>
+    <string name="account_error_fill_all_fields">Fill in all fields</string>
+    <string name="account_error_password_min_length">New password must be at least 8 characters</string>
+    <string name="account_error_passwords_mismatch">Passwords do not match</string>
+    <string name="account_error_current_password_wrong">Current password is incorrect</string>
+    <string name="account_error_no_connection">No connection</string>
+    <string name="account_error_generic">Error</string>
+
+    <!-- Auth errors -->
+    <string name="auth_error_enter_credentials">Enter your username and password</string>
+    <string name="auth_error_login_failed">Sign-in error</string>
+
+    <!-- Connection errors -->
+    <string name="connect_error_load_locations">Failed to load locations</string>
+    <string name="connect_error_invalid_link">Invalid link</string>
+    <string name="connect_error_no_configs_in_subscription">No vless configs found in the subscription</string>
+    <string name="connect_error_load_subscription">Failed to load subscription: %1$s</string>
+    <string name="connect_error_switch_node">Failed to switch node</string>
+    <string name="connect_error_bind_device">Failed to register device</string>
+    <string name="connect_error_no_vpn_permission">VPN permission denied</string>
+    <string name="connect_error_fetch_config">Failed to fetch config</string>
+    <string name="connect_error_refresh_config">Failed to refresh config</string>
+
+    <!-- VPN service error -->
+    <string name="vpn_error_no_config">No saved configuration — connect from the app</string>
+
+    <!-- Settings screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_kill_switch_title">Kill switch (Always-on)</string>
+    <string name="settings_kill_switch_desc">Open system VPN settings. Enable “Always-on VPN” and “Block connections without VPN” so traffic never bypasses the tunnel.</string>
+    <string name="settings_per_app_title">Apps through VPN</string>
+    <string name="settings_per_app_desc">Choose which apps go through the tunnel (split tunneling)</string>
+    <string name="settings_russia_direct_title">Russian sites direct</string>
+    <string name="settings_russia_direct_desc">.ru / .рф / .su bypass the tunnel</string>
+    <string name="settings_direct_list_title">Direct list (split tunnel)</string>
+    <string name="settings_direct_list_desc">One entry per line: domains (example.com, .ru) or IP/CIDR (10.0.0.0/8). They go directly, bypassing the tunnel.</string>
+    <string name="settings_direct_list_placeholder">.ru\nexample.com\n10.0.0.0/8</string>
+    <string name="settings_proxy_note">The local proxy port on Android is not configurable: the tunnel is fully handled by sing-box.</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_saved">Saved ✓</string>
+    <string name="settings_apply_note">Changes apply on the next connection.</string>
+    <string name="settings_chevron">›</string>
+
+    <!-- Language selector -->
+    <string name="settings_language_title">Язык / Language</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_russian">Русский</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_dialog_title">Язык / Language</string>
+
+    <!-- Per-app screen -->
+    <string name="perapp_back">Back</string>
+    <string name="perapp_title">Apps through VPN</string>
+    <string name="perapp_section_mode">Mode</string>
+    <string name="perapp_mode_all">All apps through VPN</string>
+    <string name="perapp_mode_include">Only selected through VPN</string>
+    <string name="perapp_mode_exclude">All except selected</string>
+    <string name="perapp_search">Search app</string>
+    <string name="perapp_off_hint">All device traffic goes through the VPN. Select a mode above to route individual apps.</string>
+
+    <!-- Update / installer toasts -->
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_download_title">SAPN VPN %1$s</string>
+    <string name="update_download_description">Downloading update…</string>
+    <string name="update_install_failed">Failed to install the update</string>
 </resources>

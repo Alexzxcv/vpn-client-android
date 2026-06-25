@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App / system -->
+    <string name="app_name">SAPN VPN</string>
+    <string name="vpn_notification_channel">SAPN VPN</string>
+    <string name="tile_label">SAPN VPN</string>
+    <string name="tile_subtitle">VPN</string>
+    <string name="vpn_notification_active">VPN активен</string>
+
+    <!-- Login screen -->
+    <string name="login_eyebrow">Приватный доступ</string>
+    <string name="login_field_login">Email или логин</string>
+    <string name="login_field_password">Пароль</string>
+    <string name="login_sign_in">Войти</string>
+    <string name="login_create_account">Создать аккаунт</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_connect">Подключение</string>
+    <string name="nav_account">Аккаунт</string>
+    <string name="nav_settings">Настройки</string>
+
+    <!-- Connection screen -->
+    <string name="connect_update_available">Доступно обновление v%1$s</string>
+    <string name="connect_update_later">Позже</string>
+    <string name="connect_update_now">Обновить</string>
+    <string name="connect_ping_ms">   ·   %1$d ms</string>
+    <string name="connect_error_prefix">Ошибка: %1$s</string>
+    <string name="connect_section_location">Локация</string>
+    <string name="connect_no_locations">Нет доступных локаций</string>
+    <string name="connect_section_custom">Свои конфиги</string>
+    <string name="connect_add">+ Добавить</string>
+    <string name="connect_custom_hint">Вставьте свою vless:// ссылку, чтобы подключаться к своему серверу.</string>
+    <string name="connect_subscription_plan">Тариф</string>
+    <string name="connect_subscription_traffic">Трафик</string>
+    <string name="connect_subscription_devices">Устройства</string>
+    <string name="connect_subscription_inactive">Подписка неактивна</string>
+    <string name="connect_dash">—</string>
+    <string name="connect_ms">%1$d ms</string>
+
+    <!-- Connection state labels -->
+    <string name="connect_state_disconnected">Отключено</string>
+    <string name="connect_state_connecting">Подключение</string>
+    <string name="connect_state_connected">Подключено</string>
+    <string name="connect_state_error">Ошибка</string>
+
+    <!-- Custom config dialog -->
+    <string name="custom_dialog_title">Свой конфиг</string>
+    <string name="custom_dialog_desc">Ссылка vless://… или ссылка-подписка (http/https).</string>
+    <string name="custom_dialog_placeholder">vless://uuid@host:443?… или https://sub…</string>
+    <string name="custom_dialog_paste">Вставить</string>
+    <string name="custom_dialog_scan_qr">Скан QR</string>
+    <string name="custom_dialog_scan_prompt">Наведите на QR с vless-ссылкой</string>
+    <string name="custom_dialog_add">Добавить</string>
+    <string name="custom_dialog_cancel">Отмена</string>
+    <string name="custom_delete">Удалить</string>
+
+    <!-- Account screen -->
+    <string name="account_title">Аккаунт</string>
+    <string name="account_logout">Выйти</string>
+    <string name="account_section_profile">Профиль</string>
+    <string name="account_field_email">Email</string>
+    <string name="account_field_username">Логин</string>
+    <string name="account_saved">Сохранено</string>
+    <string name="account_save_profile">Сохранить профиль</string>
+    <string name="account_section_password">Смена пароля</string>
+    <string name="account_field_current_password">Текущий пароль</string>
+    <string name="account_field_new_password">Новый пароль</string>
+    <string name="account_field_repeat_password">Повторите новый пароль</string>
+    <string name="account_password_changed">Пароль изменён</string>
+    <string name="account_change_password">Изменить пароль</string>
+    <string name="account_section_devices">Устройства</string>
+    <string name="account_no_devices">Нет привязанных устройств</string>
+    <string name="account_device_unnamed">Устройство</string>
+    <string name="account_device_blocked">заблокировано</string>
+    <string name="account_device_last_seen">активно %1$s</string>
+    <string name="account_device_separator"> • </string>
+    <string name="account_revoke_device">Отозвать устройство</string>
+
+    <!-- Account errors -->
+    <string name="account_error_fill_one_field">Заполните хотя бы одно поле</string>
+    <string name="account_error_invalid_email">Некорректный email</string>
+    <string name="account_error_no_changes">Нет изменений</string>
+    <string name="account_error_email_or_username_taken">Email или логин уже заняты</string>
+    <string name="account_error_session_expired">Сессия истекла, войдите снова</string>
+    <string name="account_error_fill_all_fields">Заполните все поля</string>
+    <string name="account_error_password_min_length">Новый пароль — минимум 8 символов</string>
+    <string name="account_error_passwords_mismatch">Пароли не совпадают</string>
+    <string name="account_error_current_password_wrong">Текущий пароль неверный</string>
+    <string name="account_error_no_connection">Нет соединения</string>
+    <string name="account_error_generic">Ошибка</string>
+
+    <!-- Auth errors -->
+    <string name="auth_error_enter_credentials">Введите логин и пароль</string>
+    <string name="auth_error_login_failed">Ошибка входа</string>
+
+    <!-- Connection errors -->
+    <string name="connect_error_load_locations">Не удалось загрузить локации</string>
+    <string name="connect_error_invalid_link">Некорректная ссылка</string>
+    <string name="connect_error_no_configs_in_subscription">В подписке не найдено vless-конфигов</string>
+    <string name="connect_error_load_subscription">Не удалось загрузить подписку: %1$s</string>
+    <string name="connect_error_switch_node">Не удалось переключить ноду</string>
+    <string name="connect_error_bind_device">Не удалось привязать устройство</string>
+    <string name="connect_error_no_vpn_permission">Нет разрешения на VPN</string>
+    <string name="connect_error_fetch_config">Не удалось получить конфиг</string>
+    <string name="connect_error_refresh_config">Не удалось обновить конфиг</string>
+
+    <!-- VPN service error -->
+    <string name="vpn_error_no_config">Нет сохранённой конфигурации — подключитесь из приложения</string>
+
+    <!-- Settings screen -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_kill_switch_title">Kill switch (Always-on)</string>
+    <string name="settings_kill_switch_desc">Открыть системные настройки VPN. Включите «Постоянный VPN» и «Блокировать соединения без VPN» — трафик не пойдёт в обход туннеля.</string>
+    <string name="settings_per_app_title">Приложения через VPN</string>
+    <string name="settings_per_app_desc">Выбрать, какие приложения идут через туннель (split tunneling)</string>
+    <string name="settings_russia_direct_title">Российские сайты напрямую</string>
+    <string name="settings_russia_direct_desc">.ru / .рф / .su идут мимо туннеля</string>
+    <string name="settings_direct_list_title">Direct list (split tunnel)</string>
+    <string name="settings_direct_list_desc">По одной записи в строке: домены (example.com, .ru) или IP/CIDR (10.0.0.0/8). Идут напрямую, мимо туннеля.</string>
+    <string name="settings_direct_list_placeholder">.ru\nexample.com\n10.0.0.0/8</string>
+    <string name="settings_proxy_note">Порт локального прокси на Android не настраивается: туннель полностью на стороне sing-box.</string>
+    <string name="settings_save">Сохранить</string>
+    <string name="settings_saved">Сохранено ✓</string>
+    <string name="settings_apply_note">Изменения применяются при следующем подключении.</string>
+    <string name="settings_chevron">›</string>
+
+    <!-- Language selector -->
+    <string name="settings_language_title">Язык / Language</string>
+    <string name="settings_language_system">Системный</string>
+    <string name="settings_language_russian">Русский</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_dialog_title">Язык / Language</string>
+
+    <!-- Per-app screen -->
+    <string name="perapp_back">Назад</string>
+    <string name="perapp_title">Приложения через VPN</string>
+    <string name="perapp_section_mode">Режим</string>
+    <string name="perapp_mode_all">Все приложения через VPN</string>
+    <string name="perapp_mode_include">Только выбранные через VPN</string>
+    <string name="perapp_mode_exclude">Все, кроме выбранных</string>
+    <string name="perapp_search">Поиск приложения</string>
+    <string name="perapp_off_hint">Весь трафик устройства идёт через VPN. Выберите режим выше, чтобы маршрутизировать отдельные приложения.</string>
+
+    <!-- Update / installer toasts -->
+    <string name="update_downloading">Загрузка обновления…</string>
+    <string name="update_download_title">SAPN VPN %1$s</string>
+    <string name="update_download_description">Загрузка обновления…</string>
+    <string name="update_install_failed">Не удалось установить обновление</string>
+</resources>

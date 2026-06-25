@@ -1,5 +1,7 @@
 package ru.sapn.vpn.ui.account
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -8,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.sapn.vpn.R
 import ru.sapn.vpn.data.remote.ApiException
 import ru.sapn.vpn.domain.model.Device
 import ru.sapn.vpn.domain.model.User
@@ -37,11 +40,14 @@ data class AccountUiState(
  * Различает 409 (конфликт — email/username занят) и 401 (текущий пароль неверный).
  */
 class AccountViewModel(
+    app: Application,
     private val repo: AccountRepository,
-) : ViewModel() {
+) : AndroidViewModel(app) {
 
     private val _ui = MutableStateFlow(AccountUiState())
     val ui: StateFlow<AccountUiState> = _ui.asStateFlow()
+
+    private fun str(resId: Int): String = getApplication<Application>().getString(resId)
 
     fun load() {
         viewModelScope.launch {
@@ -82,18 +88,18 @@ class AccountViewModel(
         val email = s.email.trim()
         val username = s.username.trim()
         if (email.isBlank() && username.isBlank()) {
-            _ui.update { it.copy(profileError = "Заполните хотя бы одно поле") }
+            _ui.update { it.copy(profileError = str(R.string.account_error_fill_one_field)) }
             return
         }
         if (email.isNotBlank() && !email.contains("@")) {
-            _ui.update { it.copy(profileError = "Некорректный email") }
+            _ui.update { it.copy(profileError = str(R.string.account_error_invalid_email)) }
             return
         }
         // Шлём только реально изменившиеся поля.
         val newEmail = email.takeIf { it.isNotBlank() && it != s.user?.email }
         val newUsername = username.takeIf { it.isNotBlank() && it != s.user?.username }
         if (newEmail == null && newUsername == null) {
-            _ui.update { it.copy(profileError = "Нет изменений") }
+            _ui.update { it.copy(profileError = str(R.string.account_error_no_changes)) }
             return
         }
         viewModelScope.launch {
@@ -112,8 +118,8 @@ class AccountViewModel(
                 }
                 .onFailure { e ->
                     val msg = when ((e as? ApiException)?.code) {
-                        409 -> "Email или логин уже заняты"
-                        401 -> "Сессия истекла, войдите снова"
+                        409 -> str(R.string.account_error_email_or_username_taken)
+                        401 -> str(R.string.account_error_session_expired)
                         else -> e.userMessage()
                     }
                     _ui.update { it.copy(loading = false, profileError = msg) }
@@ -124,15 +130,15 @@ class AccountViewModel(
     fun changePassword() {
         val s = _ui.value
         if (s.currentPassword.isBlank() || s.newPassword.isBlank()) {
-            _ui.update { it.copy(passwordError = "Заполните все поля") }
+            _ui.update { it.copy(passwordError = str(R.string.account_error_fill_all_fields)) }
             return
         }
         if (s.newPassword.length < 8) {
-            _ui.update { it.copy(passwordError = "Новый пароль — минимум 8 символов") }
+            _ui.update { it.copy(passwordError = str(R.string.account_error_password_min_length)) }
             return
         }
         if (s.newPassword != s.newPasswordRepeat) {
-            _ui.update { it.copy(passwordError = "Пароли не совпадают") }
+            _ui.update { it.copy(passwordError = str(R.string.account_error_passwords_mismatch)) }
             return
         }
         viewModelScope.launch {
@@ -151,7 +157,7 @@ class AccountViewModel(
                 }
                 .onFailure { e ->
                     val msg = when ((e as? ApiException)?.code) {
-                        401, 403 -> "Текущий пароль неверный"
+                        401, 403 -> str(R.string.account_error_current_password_wrong)
                         else -> e.userMessage()
                     }
                     _ui.update { it.copy(loading = false, passwordError = msg) }
@@ -170,15 +176,18 @@ class AccountViewModel(
     private fun Throwable.userMessage(): String =
         (this as? ApiException)?.let { ex ->
             when (ex.code) {
-                0 -> "Нет соединения"
-                401 -> "Сессия истекла, войдите снова"
-                else -> ex.message ?: "Ошибка"
+                0 -> str(R.string.account_error_no_connection)
+                401 -> str(R.string.account_error_session_expired)
+                else -> ex.message ?: str(R.string.account_error_generic)
             }
-        } ?: (message ?: "Ошибка")
+        } ?: (message ?: str(R.string.account_error_generic))
 
-    class Factory(private val repo: AccountRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val app: Application,
+        private val repo: AccountRepository,
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AccountViewModel(repo) as T
+            AccountViewModel(app, repo) as T
     }
 }
