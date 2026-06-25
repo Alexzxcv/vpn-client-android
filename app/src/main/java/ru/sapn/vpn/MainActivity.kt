@@ -2,11 +2,11 @@ package ru.sapn.vpn
 
 import android.graphics.Color
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -43,7 +43,7 @@ import ru.sapn.vpn.ui.settings.SettingsViewModel
 import ru.sapn.vpn.ui.theme.Sapn
 import ru.sapn.vpn.ui.theme.SapnTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private val container by lazy { (application as SapnApp).container }
 
