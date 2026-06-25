@@ -9,7 +9,9 @@ import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.runBlocking
 import ru.sapn.vpn.R
+import ru.sapn.vpn.data.local.LastConnectionStore
 import ru.sapn.vpn.data.local.SettingsStore
+import ru.sapn.vpn.domain.model.VlessConfig
 import ru.sapn.vpn.domain.vpn.VpnEngine
 import ru.sapn.vpn.domain.vpn.VpnState
 
@@ -29,21 +31,25 @@ import ru.sapn.vpn.domain.vpn.VpnState
 class XrayVpnService : VpnService() {
 
     private val engine: VpnEngine = XrayCoreVpnEngine(service = this)
+    private val lastConnStore by lazy { LastConnectionStore(applicationContext) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_CONNECT -> connect()
             ACTION_DISCONNECT -> disconnect()
-            else -> stopSelf()
+            ACTION_CONNECT -> startTunnel(VpnController.consumePendingConfig())
+            else -> {
+                // Always-on VPN / системный старт без UI: поднимаем последний конфиг.
+                val cfg = runCatching { runBlocking { lastConnStore.get() } }.getOrNull()
+                startTunnel(cfg)
+            }
         }
         return START_NOT_STICKY
     }
 
-    private fun connect() {
-        val config = VpnController.consumePendingConfig()
+    private fun startTunnel(config: VlessConfig?) {
         if (config == null) {
-            Log.w(TAG, "connect: pending config is null")
-            VpnController.fail("Внутренняя ошибка: конфиг не передан")
+            Log.w(TAG, "startTunnel: no config")
+            VpnController.fail("Нет сохранённой конфигурации — подключитесь из приложения")
             stopSelf()
             return
         }
@@ -57,6 +63,8 @@ class XrayVpnService : VpnService() {
             runCatching { engine.stop() }
             val settings = runBlocking { SettingsStore(applicationContext).get() }
             engine.start(config, settings)
+            // Сохраняем конфиг для Always-on (поднять туннель без UI).
+            runCatching { runBlocking { lastConnStore.save(config) } }
             VpnController.updateState(VpnState.CONNECTED)
         } catch (t: Throwable) {
             Log.e(TAG, "connect failed", t)

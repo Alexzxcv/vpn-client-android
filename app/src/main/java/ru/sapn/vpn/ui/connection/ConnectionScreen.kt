@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,8 @@ import ru.sapn.vpn.ui.components.SapnCard
 import ru.sapn.vpn.ui.components.formatBytes
 import ru.sapn.vpn.ui.theme.Sapn
 import ru.sapn.vpn.update.AppInstaller
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 
 @Composable
 fun ConnectionScreen(viewModel: ConnectionViewModel) {
@@ -383,21 +386,29 @@ private fun CustomRow(server: CustomServer, selected: Boolean, onClick: () -> Un
 @Composable
 private fun AddCustomDialog(error: String?, onAdd: (String) -> Unit, onDismiss: () -> Unit) {
     var link by remember { mutableStateOf("") }
+    val clipboard = LocalClipboardManager.current
+    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents?.let { link = it }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Sapn.Slate,
         titleContentColor = Sapn.Frost,
         textContentColor = Sapn.Mute,
-        title = { Text("Свой VLESS-конфиг") },
+        title = { Text("Свой конфиг") },
         text = {
             Column {
-                Text("Вставьте ссылку вида vless://…", color = Sapn.Mute, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Ссылка vless://… или ссылка-подписка (http/https).",
+                    color = Sapn.Mute,
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = link,
                     onValueChange = { link = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("vless://uuid@host:443?...", color = Sapn.Faint) },
+                    placeholder = { Text("vless://uuid@host:443?... или https://sub…", color = Sapn.Faint) },
                     minLines = 2,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Sapn.Ion,
@@ -407,8 +418,24 @@ private fun AddCustomDialog(error: String?, onAdd: (String) -> Unit, onDismiss: 
                         cursorColor = Sapn.Ion,
                     ),
                 )
+                Spacer(Modifier.height(6.dp))
+                Row {
+                    TextButton(onClick = { clipboard.getText()?.text?.let { link = it } }) {
+                        Text("Вставить", color = Sapn.Ion, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Ion))
+                    }
+                    TextButton(onClick = {
+                        val opts = ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setOrientationLocked(false)
+                            .setBeepEnabled(false)
+                            .setPrompt("Наведите на QR с vless-ссылкой")
+                        scanLauncher.launch(opts)
+                    }) {
+                        Text("Скан QR", color = Sapn.Ion, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Ion))
+                    }
+                }
                 if (error != null) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
                     Text(error, color = Sapn.Alert, style = MaterialTheme.typography.bodySmall.copy(color = Sapn.Alert))
                 }
             }

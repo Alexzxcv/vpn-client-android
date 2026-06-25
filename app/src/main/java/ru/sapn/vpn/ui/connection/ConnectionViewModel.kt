@@ -5,8 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +27,8 @@ import ru.sapn.vpn.domain.update.UpdateRepository
 import ru.sapn.vpn.domain.vpn.VpnState
 import ru.sapn.vpn.vpn.VlessLinkParser
 import ru.sapn.vpn.vpn.VpnController
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.time.Instant
 import java.time.format.DateTimeParseException
 import java.util.UUID
@@ -53,6 +57,7 @@ class ConnectionViewModel(
     private val vpnRepository: VpnRepository,
     private val updateRepository: UpdateRepository,
     private val customServerStore: CustomServerStore,
+    private val okHttp: OkHttpClient,
 ) : AndroidViewModel(app) {
 
     private val _ui = MutableStateFlow(ConnectionUiState())
@@ -118,9 +123,17 @@ class ConnectionViewModel(
         }
     }
 
-    /** Добавить свой конфиг по vless-ссылке. Ошибка парсинга — в [customError]. */
-    fun addCustomServer(link: String) {
-        VlessLinkParser.parse(link).fold(
+    /**
+     * Добавить свой конфиг. Принимает либо одну vless://-ссылку, либо http(s)-ссылку
+     * подписки (тогда импортируем все конфиги из неё). Ошибка — в [customError].
+     */
+    fun addCustomServer(input: String) {
+        val s = input.trim()
+        if (s.startsWith("http://") || s.startsWith("https://")) {
+            importSubscription(s)
+            return
+        }
+        VlessLinkParser.parse(s).fold(
             onSuccess = { (name, config) ->
                 viewModelScope.launch {
                     customServerStore.add(CustomServer(UUID.randomUUID().toString(), name, config))
@@ -132,6 +145,47 @@ class ConnectionViewModel(
                 _ui.value = _ui.value.copy(customError = e.message ?: "Некорректная ссылка")
             },
         )
+    }
+
+    /** Импорт подписки: тянем список (часто base64) и добавляем все vless-конфиги. */
+    private fun importSubscription(url: String) {
+        viewModelScope.launch {
+            val fetched = withContext(Dispatchers.IO) {
+                runCatching {
+                    okHttp.newCall(Request.Builder().url(url).build()).execute().use { resp ->
+                        if (!resp.isSuccessful) error("HTTP ${resp.code}")
+                        resp.body?.string() ?: ""
+                    }
+                }
+            }
+            fetched.onSuccess { body ->
+                val text = decodeSubscription(body)
+                val links = text.lines().map { it.trim() }.filter { it.startsWith("vless://") }
+                var added = 0
+                links.forEach { link ->
+                    VlessLinkParser.parse(link).onSuccess { (name, config) ->
+                        customServerStore.add(CustomServer(UUID.randomUUID().toString(), name, config))
+                        added++
+                    }
+                }
+                if (added == 0) {
+                    _ui.value = _ui.value.copy(customError = "В подписке не найдено vless-конфигов")
+                } else {
+                    _ui.value = _ui.value.copy(customError = null)
+                    loadCustomServers()
+                }
+            }.onFailure { e ->
+                _ui.value = _ui.value.copy(customError = "Не удалось загрузить подписку: ${e.message}")
+            }
+        }
+    }
+
+    private fun decodeSubscription(body: String): String {
+        val trimmed = body.trim()
+        if (trimmed.startsWith("vless://")) return trimmed
+        return runCatching {
+            String(android.util.Base64.decode(trimmed, android.util.Base64.DEFAULT))
+        }.getOrDefault(trimmed)
     }
 
     fun clearCustomError() {
@@ -276,9 +330,10 @@ class ConnectionViewModel(
         private val vpnRepository: VpnRepository,
         private val updateRepository: UpdateRepository,
         private val customServerStore: CustomServerStore,
+        private val okHttp: OkHttpClient,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            ConnectionViewModel(app, vpnRepository, updateRepository, customServerStore) as T
+            ConnectionViewModel(app, vpnRepository, updateRepository, customServerStore, okHttp) as T
     }
 }

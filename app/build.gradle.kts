@@ -19,8 +19,8 @@ android {
         applicationId = "ru.sapn.vpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.1.9"
+        versionCode = 11
+        versionName = "0.2.0"
 
         // База API control-plane. Переопределяется по сборкам ниже.
         // Никаких секретов здесь — только публичный адрес.
@@ -115,6 +115,9 @@ dependencies {
 
     // Идентичность устройства: Ed25519-подпись на всех API (>=26).
     implementation(libs.eddsa)
+
+    // Сканер QR-кодов для импорта vless-ссылок.
+    implementation(libs.zxing.embedded)
 
     testImplementation(libs.junit)
 

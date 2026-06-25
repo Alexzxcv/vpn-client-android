@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
             container.vpnRepository,
             container.updateRepository,
             container.customServerStore,
+            container.plainHttp,
         )
     }
 

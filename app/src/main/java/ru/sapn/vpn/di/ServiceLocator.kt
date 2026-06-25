@@ -62,8 +62,8 @@ class AppContainer(context: Context) {
         .build()
         .create(VpnApi::class.java)
 
-    // Отдельный клиент для GitHub: другой хост, без нашего Bearer-токена.
-    private val plainHttp: OkHttpClient = OkHttpClient.Builder().build()
+    // Клиент без нашего Bearer-токена: GitHub (обновления) + импорт подписок.
+    val plainHttp: OkHttpClient = OkHttpClient.Builder().build()
 
     val authRepository: AuthRepository = AuthRepositoryImpl(api, tokenStore)
     val accountRepository: AccountRepository = AccountRepositoryImpl(api)

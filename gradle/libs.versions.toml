@@ -14,6 +14,7 @@ retrofitSerializationConverter = "1.0.0"
 datastore = "1.1.1"
 coroutines = "1.9.0"
 eddsa = "0.3.0"
+zxing = "4.3.0"
 junit = "4.13.2"
 
 [libraries]
@@ -43,6 +44,9 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # Ed25519 на всех API-уровнях (java.security Ed25519 — только с API 33).
 eddsa = { group = "net.i2p.crypto", name = "eddsa", version.ref = "eddsa" }
+
+# Сканер QR-кодов (vless-ссылки).
+zxing-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxing" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 

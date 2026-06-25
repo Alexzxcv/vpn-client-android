@@ -23,8 +23,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Intent
+import android.provider.Settings
 import ru.sapn.vpn.ui.components.Eyebrow
 import ru.sapn.vpn.ui.components.SapnCard
 import ru.sapn.vpn.ui.theme.Sapn
@@ -32,6 +35,7 @@ import ru.sapn.vpn.ui.theme.Sapn
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) { viewModel.load() }
 
@@ -44,6 +48,28 @@ fun SettingsScreen(viewModel: SettingsViewModel, onOpenPerApp: () -> Unit = {}) 
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Настройки", style = MaterialTheme.typography.headlineMedium, color = Sapn.Frost)
+
+        // ---- Kill switch / Always-on ----
+        SapnCard(Modifier.fillMaxWidth().clickable {
+            val i = Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(i) }
+        }) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Kill switch (Always-on)", color = Sapn.Frost, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Открыть системные настройки VPN. Включите «Постоянный VPN» и «Блокировать соединения без VPN» — трафик не пойдёт в обход туннеля.",
+                        color = Sapn.Mute,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Text("›", color = Sapn.Faint, style = MaterialTheme.typography.titleLarge)
+            }
+        }
 
         // ---- Приложения через VPN (per-app) ----
         SapnCard(Modifier.fillMaxWidth().clickable(onClick = onOpenPerApp)) {
