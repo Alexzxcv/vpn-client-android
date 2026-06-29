@@ -20,6 +20,7 @@ import ru.sapn.vpn.BuildConfig
 import ru.sapn.vpn.R
 import ru.sapn.vpn.data.local.CustomServerStore
 import ru.sapn.vpn.data.local.LastConnectionStore
+import ru.sapn.vpn.data.remote.ApiException
 import ru.sapn.vpn.domain.model.CustomServer
 import ru.sapn.vpn.domain.model.Location
 import ru.sapn.vpn.domain.model.Subscription
@@ -334,10 +335,15 @@ class ConnectionViewModel(
             _ui.value = _ui.value.copy(loading = true, error = null)
             val bind = vpnRepository.registerDevice()
             if (bind.isFailure) {
-                _ui.value = _ui.value.copy(
-                    loading = false,
-                    error = bind.exceptionOrNull()?.message ?: str(R.string.connect_error_bind_device),
-                )
+                val ex = bind.exceptionOrNull()
+                // Лимит устройств (на наши ноды; своих серверов не касается) —
+                // показываем понятное сообщение вместо сырого текста ошибки.
+                val msg = if (ex is ApiException && ex.backendCode == "device_limit") {
+                    str(R.string.connect_error_device_limit)
+                } else {
+                    ex?.message ?: str(R.string.connect_error_bind_device)
+                }
+                _ui.value = _ui.value.copy(loading = false, error = msg)
                 return@launch
             }
             _ui.value = _ui.value.copy(loading = false, needsVpnPermission = true)

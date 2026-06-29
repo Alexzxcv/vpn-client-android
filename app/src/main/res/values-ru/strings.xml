@@ -100,6 +100,7 @@
     <string name="connect_error_load_subscription">Не удалось загрузить подписку: %1$s</string>
     <string name="connect_error_switch_node">Не удалось переключить ноду</string>
     <string name="connect_error_bind_device">Не удалось привязать устройство</string>
+    <string name="connect_error_device_limit">Достигнут лимит устройств вашего тарифа. Удалите неиспользуемое устройство в личном кабинете или оформите подписку — либо подключитесь через свой сервер (на них лимита нет).</string>
     <string name="connect_error_no_vpn_permission">Нет разрешения на VPN</string>
     <string name="connect_error_fetch_config">Не удалось получить конфиг</string>
     <string name="connect_error_refresh_config">Не удалось обновить конфиг</string>

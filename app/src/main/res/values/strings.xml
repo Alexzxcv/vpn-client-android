@@ -100,6 +100,7 @@
     <string name="connect_error_load_subscription">Failed to load subscription: %1$s</string>
     <string name="connect_error_switch_node">Failed to switch node</string>
     <string name="connect_error_bind_device">Failed to register device</string>
+    <string name="connect_error_device_limit">Device limit for your plan reached. Remove an unused device in your account or get a subscription — or connect via your own server (no device limit).</string>
     <string name="connect_error_no_vpn_permission">VPN permission denied</string>
     <string name="connect_error_fetch_config">Failed to fetch config</string>
     <string name="connect_error_refresh_config">Failed to refresh config</string>
