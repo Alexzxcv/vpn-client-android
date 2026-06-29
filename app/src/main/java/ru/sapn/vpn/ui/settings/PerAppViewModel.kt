@@ -1,7 +1,7 @@
 package ru.sapn.vpn.ui.settings
 
 import android.app.Application
-import android.content.pm.PackageManager
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -49,13 +49,21 @@ class PerAppViewModel(
     private fun loadApps(): List<AppItem> {
         val pm = getApplication<Application>().packageManager
         val self = getApplication<Application>().packageName
-        val installed = runCatching { pm.getInstalledApplications(0) }.getOrDefault(emptyList())
-        return installed
+        // ОДИН запрос launcher-активностей вместо getLaunchIntentForPackage на
+        // каждое приложение (там — отдельный IPC к PackageManager на пакет, что и
+        // тормозило загрузку на устройствах с сотнями приложений). queryIntentActivities
+        // сразу отдаёт запускаемые приложения с ярлыками.
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val resolved = runCatching { pm.queryIntentActivities(intent, 0) }.getOrDefault(emptyList())
+        return resolved
             .asSequence()
-            .filter { it.packageName != self }
-            // Показываем только приложения, которые можно запустить (пользовательские).
-            .filter { runCatching { pm.getLaunchIntentForPackage(it.packageName) != null }.getOrDefault(false) }
-            .map { AppItem(it.packageName, runCatching { pm.getApplicationLabel(it).toString() }.getOrDefault(it.packageName)) }
+            .filter { it.activityInfo.packageName != self }
+            .map { ri ->
+                // Ярлык берём из уже полученного ResolveInfo (без доп. IPC на пакет).
+                val label = runCatching { ri.loadLabel(pm).toString() }
+                    .getOrDefault(ri.activityInfo.packageName)
+                AppItem(ri.activityInfo.packageName, label)
+            }
             .distinctBy { it.packageName }
             .sortedBy { it.label.lowercase() }
             .toList()

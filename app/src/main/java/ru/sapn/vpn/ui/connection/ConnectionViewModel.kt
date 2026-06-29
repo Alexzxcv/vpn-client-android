@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import ru.sapn.vpn.BuildConfig
 import ru.sapn.vpn.R
 import ru.sapn.vpn.data.local.CustomServerStore
+import ru.sapn.vpn.data.local.LastConnectionStore
 import ru.sapn.vpn.domain.model.CustomServer
 import ru.sapn.vpn.domain.model.Location
 import ru.sapn.vpn.domain.model.Subscription
@@ -66,6 +67,10 @@ class ConnectionViewModel(
     private val _ui = MutableStateFlow(ConnectionUiState())
     val ui: StateFlow<ConnectionUiState> = _ui.asStateFlow()
 
+    // Конфиг последнего/активного туннеля — источник истины «к чему подключены»,
+    // чтобы восстановить выбранную локацию при перезапуске приложения.
+    private val lastConnectionStore = LastConnectionStore(app)
+
     private fun str(resId: Int): String = getApplication<Application>().getString(resId)
     private fun str(resId: Int, vararg args: Any): String = getApplication<Application>().getString(resId, *args)
 
@@ -95,40 +100,62 @@ class ConnectionViewModel(
     }
 
     fun load() {
-        loadCustomServers()
         viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, error = null)
+
+            // Сначала свои серверы и конфиг последнего туннеля — чтобы при перезапуске
+            // восстановить РЕАЛЬНО подключённый сервер, а не первый в списке.
+            val customs = customServerStore.list()
+            val last = lastConnectionStore.get()
+            val customMatch = customs.firstOrNull { sameNode(it.config, last) }
+                ?.let { CUSTOM_PREFIX + it.id }
+            _ui.value = _ui.value.copy(
+                customServers = customs,
+                selectedLocationId = _ui.value.selectedLocationId ?: customMatch,
+            )
+
             val sub = vpnRepository.subscription().getOrNull()
             val used = vpnRepository.devicesUsed().getOrNull() ?: 0
             vpnRepository.locations()
                 .onSuccess { locs ->
+                    // Приоритет: уже выбранное (в т.ч. восстановленный кастомный выше)
+                    // → первый backend → первый кастомный. Backend-узел по конфигу не
+                    // сопоставляем: доменная Location не несёт host/port.
+                    val selected = _ui.value.selectedLocationId
+                        ?: locs.firstOrNull()?.id
+                        ?: customs.firstOrNull()?.let { CUSTOM_PREFIX + it.id }
                     _ui.value = _ui.value.copy(
                         loading = false,
                         subscription = sub,
                         devicesUsed = used,
                         locations = locs,
-                        selectedLocationId = _ui.value.selectedLocationId ?: locs.firstOrNull()?.id,
+                        selectedLocationId = selected,
                     )
                 }
                 .onFailure { e ->
+                    // Backend недоступен — оставляем восстановленный/первый кастомный.
+                    val selected = _ui.value.selectedLocationId
+                        ?: customs.firstOrNull()?.let { CUSTOM_PREFIX + it.id }
                     _ui.value = _ui.value.copy(
                         loading = false,
                         subscription = sub,
                         devicesUsed = used,
+                        selectedLocationId = selected,
                         error = e.message ?: str(R.string.connect_error_load_locations),
                     )
                 }
         }
     }
 
+    // Тот же ли это узел (по host/port/uuid). Используется для сопоставления
+    // активного конфига с сохранённым кастомным сервером.
+    private fun sameNode(config: VlessConfig, last: VlessConfig?): Boolean =
+        last != null && config.host == last.host && config.port == last.port && config.uuid == last.uuid
+
+    /** Обновляет список своих серверов в UI (после добавления/удаления). Выбор не трогает. */
     private fun loadCustomServers() {
         viewModelScope.launch {
-            val list = customServerStore.list()
-            _ui.value = _ui.value.copy(
-                customServers = list,
-                selectedLocationId = _ui.value.selectedLocationId
-                    ?: list.firstOrNull()?.let { CUSTOM_PREFIX + it.id },
-            )
+            _ui.value = _ui.value.copy(customServers = customServerStore.list())
         }
     }
 
