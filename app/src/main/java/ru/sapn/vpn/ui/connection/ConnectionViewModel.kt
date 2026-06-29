@@ -90,19 +90,18 @@ class ConnectionViewModel(
     private var customPingJob: Job? = null
 
     init {
-        // Пинг подключённого кастомного сервера: у кастомных нод нет backend-
-        // латентности, но узел текущей сессии маршрутизируется напрямую, поэтому
-        // прямой TCP-замер даёт реальный RTT. Меряем, пока подключены к кастому.
+        // Пинг кастомной ноды. У кастомных нет backend-латентности, меряем сами —
+        // но ТОЛЬКО когда туннель НЕ поднят: при активном VPN TCP-проба завершается
+        // локально в userspace-стеке (gvisor) и даёт ложный ~1ms, а не реальный RTT
+        // до сервера. Поэтому меряем на чистом пути (disconnected/error) выбранную
+        // кастомную ноду, а пока подключены — показываем последнее «чистое» значение.
         viewModelScope.launch {
             VpnController.state.collect { st ->
-                if (st == VpnState.CONNECTED && isCustom(_ui.value.selectedLocationId)) {
+                if (st == VpnState.DISCONNECTED || st == VpnState.ERROR) {
                     startCustomPing()
                 } else {
                     customPingJob?.cancel()
                     customPingJob = null
-                    if (_ui.value.customPingMs != 0) {
-                        _ui.value = _ui.value.copy(customPingMs = 0)
-                    }
                 }
             }
         }
@@ -113,12 +112,12 @@ class ConnectionViewModel(
         customPingJob = viewModelScope.launch {
             while (isActive) {
                 val cfg = customConfig(_ui.value.selectedLocationId)
-                if (cfg == null) {
+                if (cfg != null) {
+                    val ms = measureTcpRtt(cfg.host, cfg.port)
+                    if (ms > 0) _ui.value = _ui.value.copy(customPingMs = ms)
+                } else if (_ui.value.customPingMs != 0) {
                     _ui.value = _ui.value.copy(customPingMs = 0)
-                    break
                 }
-                val ms = measureTcpRtt(cfg.host, cfg.port)
-                if (ms > 0) _ui.value = _ui.value.copy(customPingMs = ms)
                 delay(CUSTOM_PING_INTERVAL_MS)
             }
         }
@@ -295,7 +294,9 @@ class ConnectionViewModel(
 
     fun selectLocation(id: String) {
         val prev = _ui.value.selectedLocationId
-        _ui.value = _ui.value.copy(selectedLocationId = id)
+        // Сбрасываем пинг при смене выбора, чтобы не показывать значение прошлой
+        // ноды до перезамера новой.
+        _ui.value = _ui.value.copy(selectedLocationId = id, customPingMs = if (id != prev) 0 else _ui.value.customPingMs)
         val st = vpnState.value
         if (id != prev && (st == VpnState.CONNECTED || st == VpnState.CONNECTING)) {
             reconnect(id)
