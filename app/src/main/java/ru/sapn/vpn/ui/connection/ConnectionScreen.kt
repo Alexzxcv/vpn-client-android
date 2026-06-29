@@ -96,6 +96,7 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
 
     val connected = vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING
     val selectedLoc = state.locations.firstOrNull { it.id == state.selectedLocationId }
+    val selectedCustom = state.customServers.firstOrNull { "custom:${it.id}" == state.selectedLocationId }
 
     Column(
         modifier = Modifier
@@ -173,6 +174,20 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
                     Text(stringResource(R.string.connect_ping_ms, selectedLoc.pingMs), color = Sapn.Mute, style = MaterialTheme.typography.labelLarge)
                 }
             }
+        } else if (selectedCustom != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    selectedCustom.name,
+                    color = if (vpnState == VpnState.CONNECTED) Sapn.Ok else Sapn.Frost,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                // Пинг кастомной ноды известен только когда мы к ней подключены.
+                if (state.customPingMs > 0) {
+                    Text(stringResource(R.string.connect_ping_ms, state.customPingMs), color = Sapn.Mute, style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
 
         val shownError = state.error ?: vpnError?.takeIf { vpnState == VpnState.ERROR }
@@ -231,9 +246,12 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
             )
         }
         state.customServers.forEach { cs ->
+            val isSel = state.selectedLocationId == "custom:${cs.id}"
             CustomRow(
                 server = cs,
-                selected = state.selectedLocationId == "custom:${cs.id}",
+                selected = isSel,
+                // Пинг показываем только у сервера текущей сессии (к нему подключены).
+                pingMs = if (isSel && vpnState == VpnState.CONNECTED) state.customPingMs else 0,
                 onClick = { viewModel.selectLocation("custom:${cs.id}") },
                 onDelete = { viewModel.removeCustomServer(cs.id) },
             )
@@ -366,7 +384,7 @@ private fun LocationRow(loc: Location, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun CustomRow(server: CustomServer, selected: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun CustomRow(server: CustomServer, selected: Boolean, pingMs: Int, onClick: () -> Unit, onDelete: () -> Unit) {
     val border = if (selected) Sapn.Ion else Sapn.Hairline
     val bg = if (selected) Sapn.Ion.copy(alpha = 0.07f) else Sapn.Slate
     Surface(
@@ -383,6 +401,14 @@ private fun CustomRow(server: CustomServer, selected: Boolean, onClick: () -> Un
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(server.name, color = Sapn.Frost, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${server.config.host}:${server.config.port}", color = Sapn.Mute, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (pingMs > 0) {
+                Text(
+                    stringResource(R.string.connect_ms, pingMs),
+                    color = Sapn.Mute,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
             }
             Icon(
                 Icons.Outlined.Delete,

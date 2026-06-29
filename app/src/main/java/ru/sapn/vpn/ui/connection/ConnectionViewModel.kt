@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -43,6 +44,8 @@ data class ConnectionUiState(
     /** Кол-во привязанных устройств (X в индикаторе X/Y). */
     val devicesUsed: Int = 0,
     val selectedLocationId: String? = null,
+    /** Пинг (мс) подключённого кастомного сервера; 0 — нет/не подключён. */
+    val customPingMs: Int = 0,
     val error: String? = null,
     /** Ошибка добавления своего конфига (для диалога). */
     val customError: String? = null,
@@ -84,6 +87,58 @@ class ConnectionViewModel(
 
     private var refreshJob: Job? = null
     private var lastUpdateCheckMs = 0L
+    private var customPingJob: Job? = null
+
+    init {
+        // Пинг подключённого кастомного сервера: у кастомных нод нет backend-
+        // латентности, но узел текущей сессии маршрутизируется напрямую, поэтому
+        // прямой TCP-замер даёт реальный RTT. Меряем, пока подключены к кастому.
+        viewModelScope.launch {
+            VpnController.state.collect { st ->
+                if (st == VpnState.CONNECTED && isCustom(_ui.value.selectedLocationId)) {
+                    startCustomPing()
+                } else {
+                    customPingJob?.cancel()
+                    customPingJob = null
+                    if (_ui.value.customPingMs != 0) {
+                        _ui.value = _ui.value.copy(customPingMs = 0)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startCustomPing() {
+        customPingJob?.cancel()
+        customPingJob = viewModelScope.launch {
+            while (isActive) {
+                val cfg = customConfig(_ui.value.selectedLocationId)
+                if (cfg == null) {
+                    _ui.value = _ui.value.copy(customPingMs = 0)
+                    break
+                }
+                val ms = measureTcpRtt(cfg.host, cfg.port)
+                if (ms > 0) _ui.value = _ui.value.copy(customPingMs = ms)
+                delay(CUSTOM_PING_INTERVAL_MS)
+            }
+        }
+    }
+
+    /** TCP-RTT до host:port (мин. из нескольких проб), 0 — недоступно. */
+    private suspend fun measureTcpRtt(host: String, port: Int): Int = withContext(Dispatchers.IO) {
+        var best = 0
+        repeat(2) {
+            val ms = runCatching {
+                val start = System.nanoTime()
+                java.net.Socket().use { s ->
+                    s.connect(java.net.InetSocketAddress(host, port), CUSTOM_PING_TIMEOUT_MS)
+                }
+                ((System.nanoTime() - start) / 1_000_000).toInt().coerceAtLeast(1)
+            }.getOrDefault(0)
+            if (ms > 0 && (best == 0 || ms < best)) best = ms
+        }
+        best
+    }
 
     fun checkForUpdate() {
         val now = System.currentTimeMillis()
@@ -359,6 +414,8 @@ class ConnectionViewModel(
         const val CUSTOM_PREFIX = "custom:"
         const val REFRESH_LEAD_SECONDS = 12L * 60L * 60L
         const val UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
+        const val CUSTOM_PING_INTERVAL_MS = 5_000L
+        const val CUSTOM_PING_TIMEOUT_MS = 2_000
     }
 
     class Factory(
