@@ -50,7 +50,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import ru.sapn.vpn.R
 import ru.sapn.vpn.domain.model.CustomServer
 import ru.sapn.vpn.domain.model.Location
@@ -76,6 +80,18 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
     LaunchedEffect(Unit) {
         viewModel.load()
         viewModel.checkForUpdate()
+    }
+
+    // Живой поллинг трафика/устройств, пока экран виден (STARTED) — иначе цифры
+    // на главном замирали до переоткрытия приложения. В фоне не тикает.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(5_000)
+                viewModel.refreshUsage()
+            }
+        }
     }
 
     val vpnPermLauncher = rememberLauncherForActivityResult(

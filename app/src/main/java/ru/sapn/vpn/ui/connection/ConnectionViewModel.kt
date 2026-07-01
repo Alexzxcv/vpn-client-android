@@ -207,6 +207,21 @@ class ConnectionViewModel(
     private fun sameNode(config: VlessConfig, last: VlessConfig?): Boolean =
         last != null && config.host == last.host && config.port == last.port && config.uuid == last.uuid
 
+    /**
+     * Обновляет цифры трафика/устройств на главном экране — для «живого»
+     * поллинга, пока экран виден (иначе трафик замирал до переоткрытия
+     * приложения). Один запрос подписки + счётчик устройств; на ошибке
+     * оставляем прежние значения.
+     */
+    suspend fun refreshUsage() {
+        val sub = vpnRepository.subscription().getOrNull()
+        val used = vpnRepository.devicesUsed().getOrNull()
+        _ui.value = _ui.value.copy(
+            subscription = sub ?: _ui.value.subscription,
+            devicesUsed = used ?: _ui.value.devicesUsed,
+        )
+    }
+
     /** Обновляет список своих серверов в UI (после добавления/удаления). Выбор не трогает. */
     private fun loadCustomServers() {
         viewModelScope.launch {
