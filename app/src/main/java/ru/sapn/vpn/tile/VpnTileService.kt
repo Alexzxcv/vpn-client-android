@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import ru.sapn.vpn.MainActivity
 import ru.sapn.vpn.SapnApp
+import ru.sapn.vpn.data.local.LastConnectionStore
 import ru.sapn.vpn.domain.vpn.VpnState
 import ru.sapn.vpn.vpn.VpnController
 
@@ -64,12 +65,32 @@ class VpnTileService : TileService() {
         }.onFailure { Log.w(TAG, "tile click failed: ${it.message}") }
     }
 
-    /** Полный цикл подключения из плитки: тянем конфиг и поднимаем туннель. */
+    /**
+     * Полный цикл подключения из плитки: восстанавливаем ПОСЛЕДНЕЕ подключение и
+     * поднимаем туннель.
+     *
+     * Если последним был СВОЙ (кастомный) сервер — поднимаем сохранённый конфиг
+     * напрямую (он не истекает и backend не нужен); иначе (backend/ничего не
+     * сохранено) тянем свежий конфиг лучшей ноды. Раньше плитка всегда дёргала
+     * fetchConfig(null) → подключалась к первой онлайн-ноде, забывая кастомный.
+     */
     private fun connectDirectly() {
         val container = (application as? SapnApp)?.container ?: return openAppToConnect()
         val s = scope ?: CoroutineScope(SupervisorJob() + Dispatchers.Main).also { scope = it }
         VpnController.updateState(VpnState.CONNECTING)
         s.launch {
+            val last = LastConnectionStore(applicationContext).get()
+            if (last != null) {
+                val isCustom = container.customServerStore.list().any {
+                    it.config.host == last.host &&
+                        it.config.port == last.port &&
+                        it.config.uuid == last.uuid
+                }
+                if (isCustom) {
+                    VpnController.start(applicationContext, last)
+                    return@launch
+                }
+            }
             container.vpnRepository.fetchConfig(null)
                 .onSuccess { config -> VpnController.start(applicationContext, config) }
                 .onFailure {
