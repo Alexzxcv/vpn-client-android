@@ -28,6 +28,7 @@ import ru.sapn.vpn.domain.model.VlessConfig
 import ru.sapn.vpn.domain.repository.VpnRepository
 import ru.sapn.vpn.domain.update.AppUpdate
 import ru.sapn.vpn.domain.update.UpdateRepository
+import ru.sapn.vpn.update.AppInstaller
 import ru.sapn.vpn.domain.vpn.VpnState
 import ru.sapn.vpn.vpn.VlessLinkParser
 import ru.sapn.vpn.vpn.VpnController
@@ -80,6 +81,11 @@ class ConnectionViewModel(
 
     private val _update = MutableStateFlow<AppUpdate?>(null)
     val update: StateFlow<AppUpdate?> = _update.asStateFlow()
+
+    // Идёт ли скачивание обновления — чтобы кнопка «Обновить» дизейблилась и
+    // повторные нажатия не плодили загрузки.
+    private val _downloadingUpdate = MutableStateFlow(false)
+    val downloadingUpdate: StateFlow<Boolean> = _downloadingUpdate.asStateFlow()
 
     val vpnState: StateFlow<VpnState> = VpnController.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VpnState.DISCONNECTED)
@@ -152,6 +158,21 @@ class ConnectionViewModel(
 
     fun dismissUpdate() {
         _update.value = null
+        _downloadingUpdate.value = false
+    }
+
+    /**
+     * Скачать и установить обновление. Игнорирует повторные нажатия, пока идёт
+     * загрузка (иначе стартовало несколько параллельных скачиваний). Состояние
+     * снимается по завершении/ошибке через callback.
+     */
+    fun applyUpdate() {
+        val upd = _update.value ?: return
+        if (_downloadingUpdate.value) return
+        _downloadingUpdate.value = true
+        AppInstaller.downloadAndInstall(getApplication(), upd.apkUrl, upd.versionName) {
+            _downloadingUpdate.value = false
+        }
     }
 
     fun load() {
@@ -319,9 +340,15 @@ class ConnectionViewModel(
         }
     }
 
+    /** Запоминает id выбранной локации, чтобы плитка восстановила именно её. */
+    private fun rememberServerId(id: String?) {
+        viewModelScope.launch { lastConnectionStore.saveServerId(id) }
+    }
+
     private fun reconnect(id: String) {
         customConfig(id)?.let { cfg ->
             // Свой конфиг — поднимаем напрямую (сервис погасит старый туннель).
+            rememberServerId(id)
             VpnController.start(getApplication(), cfg)
             return
         }
@@ -330,6 +357,7 @@ class ConnectionViewModel(
             vpnRepository.fetchConfig(id)
                 .onSuccess { config ->
                     _ui.value = _ui.value.copy(loading = false)
+                    rememberServerId(id)
                     VpnController.start(getApplication(), config)
                     scheduleRefresh(config)
                 }
@@ -375,6 +403,7 @@ class ConnectionViewModel(
         val sel = _ui.value.selectedLocationId
         // Свой конфиг — бэкенд не нужен.
         customConfig(sel)?.let { cfg ->
+            rememberServerId(sel)
             VpnController.start(getApplication(), cfg)
             return
         }
@@ -383,6 +412,7 @@ class ConnectionViewModel(
             vpnRepository.fetchConfig(sel)
                 .onSuccess { config ->
                     _ui.value = _ui.value.copy(loading = false)
+                    rememberServerId(sel)
                     VpnController.start(getApplication(), config)
                     scheduleRefresh(config)
                 }

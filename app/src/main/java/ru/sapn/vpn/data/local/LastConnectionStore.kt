@@ -34,6 +34,7 @@ class LastConnectionStore(private val context: Context) {
 
     private companion object {
         val KEY = stringPreferencesKey("config_json")
+        val SERVER_KEY = stringPreferencesKey("server_id")
         val json = Json { ignoreUnknownKeys = true }
     }
 
@@ -44,6 +45,16 @@ class LastConnectionStore(private val context: Context) {
         )
         context.lastConnDataStore.edit { it[KEY] = json.encodeToString(e) }
     }
+
+    /** Сохраняет id последней выбранной локации ("custom:<id>" или id backend-ноды),
+     *  чтобы плитка могла восстановить именно её (для backend — со свежим конфигом). */
+    suspend fun saveServerId(id: String?) {
+        context.lastConnDataStore.edit {
+            if (id.isNullOrBlank()) it.remove(SERVER_KEY) else it[SERVER_KEY] = id
+        }
+    }
+
+    suspend fun serverId(): String? = context.lastConnDataStore.data.first()[SERVER_KEY]
 
     suspend fun get(): VlessConfig? {
         val raw = context.lastConnDataStore.data.first()[KEY] ?: return null

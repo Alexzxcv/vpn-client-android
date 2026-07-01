@@ -65,7 +65,6 @@ import ru.sapn.vpn.ui.components.Metric
 import ru.sapn.vpn.ui.components.SapnCard
 import ru.sapn.vpn.ui.components.formatBytes
 import ru.sapn.vpn.ui.theme.Sapn
-import ru.sapn.vpn.update.AppInstaller
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 
@@ -75,6 +74,7 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
     val vpnState by viewModel.vpnState.collectAsStateWithLifecycle()
     val vpnError by viewModel.vpnError.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
+    val downloadingUpdate by viewModel.downloadingUpdate.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -156,10 +156,22 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = { viewModel.dismissUpdate() }) { Text(stringResource(R.string.connect_update_later), color = Sapn.Mute) }
-                    TextButton(onClick = {
-                        AppInstaller.downloadAndInstall(context, upd.apkUrl, upd.versionName)
-                    }) { Text(stringResource(R.string.connect_update_now), color = Sapn.Ion) }
+                    TextButton(
+                        onClick = { viewModel.dismissUpdate() },
+                        enabled = !downloadingUpdate,
+                    ) { Text(stringResource(R.string.connect_update_later), color = Sapn.Mute) }
+                    TextButton(
+                        onClick = { viewModel.applyUpdate() },
+                        enabled = !downloadingUpdate,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (downloadingUpdate) R.string.update_downloading
+                                else R.string.connect_update_now,
+                            ),
+                            color = if (downloadingUpdate) Sapn.Mute else Sapn.Ion,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))

@@ -26,10 +26,38 @@ object AppInstaller {
     private const val TAG = "AppInstaller"
     private const val MIME = "application/vnd.android.package-archive"
 
-    fun downloadAndInstall(context: Context, url: String, versionName: String) {
+    // Идёт ли уже загрузка обновления — чтобы повторные нажатия «Обновить» не
+    // ставили несколько параллельных загрузок. Сбрасывается по завершении/ошибке.
+    @Volatile
+    private var inProgress = false
+
+    /**
+     * Скачивает и устанавливает APK. Повторные вызовы, пока идёт загрузка,
+     * игнорируются (одна загрузка за раз). [onFinished] вызывается по завершении
+     * или ошибке — чтобы UI мог снять состояние «загрузка».
+     */
+    fun downloadAndInstall(
+        context: Context,
+        url: String,
+        versionName: String,
+        onFinished: () -> Unit = {},
+    ) {
         val appCtx = context.applicationContext
+        synchronized(this) {
+            if (inProgress) {
+                Toast.makeText(appCtx, appCtx.getString(R.string.update_downloading), Toast.LENGTH_SHORT).show()
+                return
+            }
+            inProgress = true
+        }
+        val finish = {
+            inProgress = false
+            runCatching { onFinished() }
+        }
+
         val dm = appCtx.getSystemService(DownloadManager::class.java)
         if (dm == null) {
+            finish()
             fallbackOpen(appCtx, url)
             return
         }
@@ -42,11 +70,13 @@ object AppInstaller {
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalFilesDir(appCtx, Environment.DIRECTORY_DOWNLOADS, "sapn-update.apk")
         }.getOrElse {
+            finish()
             fallbackOpen(appCtx, url)
             return
         }
 
         val id = runCatching { dm.enqueue(request) }.getOrElse {
+            finish()
             fallbackOpen(appCtx, url)
             return
         }
@@ -57,6 +87,7 @@ object AppInstaller {
                 val doneId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
                 if (doneId != id) return
                 runCatching { appCtx.unregisterReceiver(this) }
+                finish()
                 val uri = runCatching { dm.getUriForDownloadedFile(id) }.getOrNull()
                 if (uri == null) {
                     Log.w(TAG, "downloaded file uri is null")

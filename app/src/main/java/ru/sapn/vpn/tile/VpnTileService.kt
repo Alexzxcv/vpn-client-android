@@ -69,29 +69,33 @@ class VpnTileService : TileService() {
      * Полный цикл подключения из плитки: восстанавливаем ПОСЛЕДНЕЕ подключение и
      * поднимаем туннель.
      *
-     * Если последним был СВОЙ (кастомный) сервер — поднимаем сохранённый конфиг
-     * напрямую (он не истекает и backend не нужен); иначе (backend/ничего не
-     * сохранено) тянем свежий конфиг лучшей ноды. Раньше плитка всегда дёргала
-     * fetchConfig(null) → подключалась к первой онлайн-ноде, забывая кастомный.
+     * Восстанавливаем ПОСЛЕДНЮЮ выбранную локацию по сохранённому server_id:
+     *  - свой сервер ("custom:…") — поднимаем сохранённый конфиг напрямую (backend
+     *    не нужен, не истекает);
+     *  - конкретная backend-нода — тянем СВЕЖИЙ конфиг именно этой ноды (по её id);
+     *  - ничего не сохранено — лучшая нода (fetchConfig(null)).
+     * Раньше для backend всегда бралась первая онлайн-нода, забывая выбор.
      */
     private fun connectDirectly() {
         val container = (application as? SapnApp)?.container ?: return openAppToConnect()
         val s = scope ?: CoroutineScope(SupervisorJob() + Dispatchers.Main).also { scope = it }
         VpnController.updateState(VpnState.CONNECTING)
         s.launch {
-            val last = LastConnectionStore(applicationContext).get()
-            if (last != null) {
-                val isCustom = container.customServerStore.list().any {
-                    it.config.host == last.host &&
-                        it.config.port == last.port &&
-                        it.config.uuid == last.uuid
-                }
-                if (isCustom) {
+            val store = LastConnectionStore(applicationContext)
+            val lastId = store.serverId()
+
+            // Свой сервер — поднимаем сохранённый конфиг напрямую.
+            if (lastId != null && lastId.startsWith("custom:")) {
+                val last = store.get()
+                if (last != null) {
                     VpnController.start(applicationContext, last)
                     return@launch
                 }
             }
-            container.vpnRepository.fetchConfig(null)
+
+            // Backend: свежий конфиг последней выбранной ноды (lastId), иначе лучшей.
+            val serverId = lastId?.takeIf { it.isNotBlank() && !it.startsWith("custom:") }
+            container.vpnRepository.fetchConfig(serverId)
                 .onSuccess { config -> VpnController.start(applicationContext, config) }
                 .onFailure {
                     VpnController.updateState(VpnState.ERROR)
