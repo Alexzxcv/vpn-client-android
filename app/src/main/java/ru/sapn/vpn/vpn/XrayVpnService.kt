@@ -7,13 +7,22 @@ import android.content.Intent
 import android.net.VpnService
 import android.os.Build
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import ru.sapn.vpn.R
+import ru.sapn.vpn.SapnApp
 import ru.sapn.vpn.data.local.LastConnectionStore
 import ru.sapn.vpn.data.local.SettingsStore
 import ru.sapn.vpn.domain.model.VlessConfig
 import ru.sapn.vpn.domain.vpn.VpnEngine
 import ru.sapn.vpn.domain.vpn.VpnState
+import java.time.Instant
 
 /**
  * VPN-сервис. Реальную маршрутизацию делает sing-box ([XrayCoreVpnEngine]).
@@ -32,6 +41,13 @@ class XrayVpnService : VpnService() {
 
     private val engine: VpnEngine = XrayCoreVpnEngine(service = this)
     private val lastConnStore by lazy { LastConnectionStore(applicationContext) }
+
+    // Рефреш credential ЖИВЁТ В СЕРВИСЕ (не в ViewModel): foreground-сервис держит
+    // процесс, но Activity/ViewModel уничтожается в фоне — если рефреш там, при
+    // долгом аптайне credential протухает, туннель (и DNS через него) умирает и
+    // интернет пропадает. Scope сервиса не привязан к Activity.
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var refreshJob: Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -66,6 +82,7 @@ class XrayVpnService : VpnService() {
             // Сохраняем конфиг для Always-on (поднять туннель без UI).
             runCatching { runBlocking { lastConnStore.save(config) } }
             VpnController.updateState(VpnState.CONNECTED)
+            scheduleRefresh(config)
         } catch (t: Throwable) {
             Log.e(TAG, "connect failed", t)
             VpnController.fail(t.message ?: t.javaClass.simpleName)
@@ -75,7 +92,50 @@ class XrayVpnService : VpnService() {
         }
     }
 
+    /**
+     * Планирует перевыпуск credential до истечения (за [REFRESH_LEAD_SECONDS]).
+     * Свои серверы (expiresAt == null) не истекают — рефреш не нужен.
+     */
+    private fun scheduleRefresh(config: VlessConfig) {
+        refreshJob?.cancel()
+        val expiryStr = config.expiresAt ?: return
+        val expiry = runCatching { Instant.parse(expiryStr) }.getOrNull() ?: return
+        val refreshAt = expiry.minusSeconds(REFRESH_LEAD_SECONDS)
+        val delayMs = (refreshAt.toEpochMilli() - System.currentTimeMillis()).coerceAtLeast(0L)
+        refreshJob = serviceScope.launch {
+            delay(delayMs)
+            refreshConfig()
+        }
+    }
+
+    /**
+     * Тянет свежий конфиг последней backend-ноды (по сохранённому server_id) и
+     * перезапускает туннель обычным путём (ACTION_CONNECT → startTunnel на main-
+     * потоке, который заново запланирует рефреш). При ошибке — повтор позже, чтобы
+     * не остаться с протухшим credential.
+     */
+    private suspend fun refreshConfig() {
+        val container = (application as? SapnApp)?.container ?: return
+        val serverId = runCatching { lastConnStore.serverId() }.getOrNull()
+        // Свой сервер не истекает — рефреш не нужен.
+        if (serverId != null && serverId.startsWith("custom:")) return
+        val target = serverId?.takeIf { it.isNotBlank() }
+        container.vpnRepository.fetchConfig(target)
+            .onSuccess { fresh ->
+                Log.i(TAG, "credential refreshed; restarting tunnel")
+                VpnController.start(applicationContext, fresh)
+            }
+            .onFailure {
+                Log.w(TAG, "config refresh failed; retry later: ${it.message}")
+                refreshJob = serviceScope.launch {
+                    delay(REFRESH_RETRY_MS)
+                    refreshConfig()
+                }
+            }
+    }
+
     private fun disconnect() {
+        refreshJob?.cancel()
         runCatching { engine.stop() }
         VpnController.updateState(VpnState.DISCONNECTED)
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -89,6 +149,8 @@ class XrayVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        refreshJob?.cancel()
+        runCatching { serviceScope.cancel() }
         runCatching { engine.stop() }
         super.onDestroy()
     }
@@ -118,5 +180,10 @@ class XrayVpnService : VpnService() {
         private const val TAG = "XrayVpnService"
         private const val CHANNEL_ID = "sapn_vpn"
         private const val NOTIF_ID = 1
+
+        // За сколько до истечения перевыпускать credential и через сколько
+        // повторять при неудаче.
+        private const val REFRESH_LEAD_SECONDS = 12L * 60L * 60L
+        private const val REFRESH_RETRY_MS = 30L * 60L * 1000L
     }
 }

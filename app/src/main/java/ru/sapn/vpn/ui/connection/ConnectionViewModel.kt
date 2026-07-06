@@ -34,8 +34,6 @@ import ru.sapn.vpn.vpn.VlessLinkParser
 import ru.sapn.vpn.vpn.VpnController
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.time.Instant
-import java.time.format.DateTimeParseException
 import java.util.UUID
 
 data class ConnectionUiState(
@@ -92,7 +90,6 @@ class ConnectionViewModel(
 
     val vpnError: StateFlow<String?> = VpnController.error
 
-    private var refreshJob: Job? = null
     private var lastUpdateCheckMs = 0L
     private var customPingJob: Job? = null
 
@@ -359,7 +356,8 @@ class ConnectionViewModel(
                     _ui.value = _ui.value.copy(loading = false)
                     rememberServerId(id)
                     VpnController.start(getApplication(), config)
-                    scheduleRefresh(config)
+                    // Рефреш credential планирует сам XrayVpnService (переживает
+                    // смерть UI-процесса).
                 }
                 .onFailure { e ->
                     _ui.value = _ui.value.copy(loading = false, error = e.message ?: str(R.string.connect_error_switch_node))
@@ -414,7 +412,7 @@ class ConnectionViewModel(
                     _ui.value = _ui.value.copy(loading = false)
                     rememberServerId(sel)
                     VpnController.start(getApplication(), config)
-                    scheduleRefresh(config)
+                    // Рефреш credential планирует сам XrayVpnService.
                 }
                 .onFailure { e ->
                     _ui.value = _ui.value.copy(loading = false, error = e.message ?: str(R.string.connect_error_fetch_config))
@@ -423,31 +421,7 @@ class ConnectionViewModel(
     }
 
     fun disconnect() {
-        refreshJob?.cancel()
-        refreshJob = null
         VpnController.stop(getApplication())
-    }
-
-    private fun scheduleRefresh(config: VlessConfig) {
-        refreshJob?.cancel()
-        val expiry = config.expiresAt?.let { parseInstant(it) } ?: return
-        val refreshAt = expiry.minusSeconds(REFRESH_LEAD_SECONDS)
-        val delayMs = (refreshAt.toEpochMilli() - System.currentTimeMillis()).coerceAtLeast(0L)
-
-        refreshJob = viewModelScope.launch {
-            delay(delayMs)
-            if (vpnState.value != VpnState.CONNECTED && vpnState.value != VpnState.CONNECTING) {
-                return@launch
-            }
-            vpnRepository.fetchConfig(_ui.value.selectedLocationId)
-                .onSuccess { fresh ->
-                    VpnController.start(getApplication(), fresh)
-                    scheduleRefresh(fresh)
-                }
-                .onFailure { e ->
-                    _ui.value = _ui.value.copy(error = e.message ?: str(R.string.connect_error_refresh_config))
-                }
-        }
     }
 
     private fun isCustom(id: String?): Boolean = id != null && id.startsWith(CUSTOM_PREFIX)
@@ -455,16 +429,8 @@ class ConnectionViewModel(
     private fun customConfig(id: String?): VlessConfig? =
         if (isCustom(id)) _ui.value.customServers.find { CUSTOM_PREFIX + it.id == id }?.config else null
 
-    private fun parseInstant(value: String): Instant? =
-        try {
-            Instant.parse(value)
-        } catch (_: DateTimeParseException) {
-            null
-        }
-
     private companion object {
         const val CUSTOM_PREFIX = "custom:"
-        const val REFRESH_LEAD_SECONDS = 12L * 60L * 60L
         const val UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
         const val CUSTOM_PING_INTERVAL_MS = 5_000L
         const val CUSTOM_PING_TIMEOUT_MS = 2_000
