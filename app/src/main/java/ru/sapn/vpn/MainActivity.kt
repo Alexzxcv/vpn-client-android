@@ -24,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,7 @@ class MainActivity : AppCompatActivity() {
         ConnectionViewModel.Factory(
             application,
             container.vpnRepository,
+            container.authRepository,
             container.updateRepository,
             container.customServerStore,
             container.plainHttp,
@@ -90,35 +92,62 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     val loggedIn by authViewModel.isLoggedIn.collectAsStateWithLifecycle()
 
-                    if (!loggedIn) {
-                        // Логин — на весь экран, без нижней навигации.
-                        LoginScreen(viewModel = authViewModel)
-                    } else {
-                        var tab by remember { mutableStateOf(Tab.Connect) }
-                        var showPerApp by remember { mutableStateOf(false) }
-                        Scaffold(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            bottomBar = { BottomNav(current = tab, onSelect = { tab = it; showPerApp = false }) },
-                        ) { inner ->
-                            Box(Modifier.padding(inner)) {
-                                when (tab) {
-                                    Tab.Connect -> ConnectionScreen(viewModel = connectionViewModel)
-                                    Tab.Account -> AccountScreen(
-                                        viewModel = accountViewModel,
-                                        onLogout = authViewModel::logout,
-                                    )
-                                    Tab.Settings ->
-                                        if (showPerApp) {
-                                            // Системная кнопка «назад» возвращает в настройки, а не выходит.
-                                            BackHandler { showPerApp = false }
-                                            PerAppScreen(viewModel = perAppViewModel, onBack = { showPerApp = false })
-                                        } else {
-                                            SettingsScreen(
-                                                viewModel = settingsViewModel,
-                                                onOpenPerApp = { showPerApp = true },
-                                            )
-                                        }
-                                }
+                    // Вход НЕ обязателен: приложение сразу открывается на экране
+                    // подключения. Логин живёт отдельной вкладкой и нужен только
+                    // ради онлайн-нод SAPN и подписки — свои серверы, настройки и
+                    // сам туннель работают без аккаунта.
+                    var tab by remember { mutableStateOf(Tab.Connect) }
+                    var showPerApp by remember { mutableStateOf(false) }
+                    // Пришли на вкладку входа из шапки «Подключения» — после
+                    // успешного логина возвращаем туда же, к появившимся нодам.
+                    var returnToConnect by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(loggedIn) {
+                        if (loggedIn && returnToConnect) {
+                            returnToConnect = false
+                            tab = Tab.Connect
+                        }
+                    }
+
+                    Scaffold(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        bottomBar = {
+                            BottomNav(
+                                current = tab,
+                                loggedIn = loggedIn,
+                                onSelect = { tab = it; showPerApp = false },
+                            )
+                        },
+                    ) { inner ->
+                        Box(Modifier.padding(inner)) {
+                            when (tab) {
+                                Tab.Connect -> ConnectionScreen(
+                                    viewModel = connectionViewModel,
+                                    onSignIn = { returnToConnect = true; tab = Tab.Account },
+                                )
+                                Tab.Account ->
+                                    if (loggedIn) {
+                                        AccountScreen(
+                                            viewModel = accountViewModel,
+                                            onLogout = {
+                                                authViewModel.logout()
+                                                accountViewModel.reset()
+                                            },
+                                        )
+                                    } else {
+                                        LoginScreen(viewModel = authViewModel)
+                                    }
+                                Tab.Settings ->
+                                    if (showPerApp) {
+                                        // Системная кнопка «назад» возвращает в настройки, а не выходит.
+                                        BackHandler { showPerApp = false }
+                                        PerAppScreen(viewModel = perAppViewModel, onBack = { showPerApp = false })
+                                    } else {
+                                        SettingsScreen(
+                                            viewModel = settingsViewModel,
+                                            onOpenPerApp = { showPerApp = true },
+                                        )
+                                    }
                             }
                         }
                     }
@@ -131,7 +160,7 @@ class MainActivity : AppCompatActivity() {
 private enum class Tab { Connect, Account, Settings }
 
 @Composable
-private fun BottomNav(current: Tab, onSelect: (Tab) -> Unit) {
+private fun BottomNav(current: Tab, loggedIn: Boolean, onSelect: (Tab) -> Unit) {
     NavigationBar(
         containerColor = Sapn.Elevated,
         contentColor = Sapn.Mute,
@@ -154,7 +183,8 @@ private fun BottomNav(current: Tab, onSelect: (Tab) -> Unit) {
             selected = current == Tab.Account,
             onClick = { onSelect(Tab.Account) },
             icon = { Icon(Icons.Outlined.Person, contentDescription = null) },
-            label = { Text(stringResource(R.string.nav_account)) },
+            // Без сессии вкладка ведёт на форму входа — называем её честно.
+            label = { Text(stringResource(if (loggedIn) R.string.nav_account else R.string.nav_sign_in)) },
             colors = colors,
         )
         NavigationBarItem(

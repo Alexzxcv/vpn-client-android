@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,7 +42,6 @@ fun LoginScreen(viewModel: AuthViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .safeDrawingPadding()
             .imePadding()
             .padding(horizontal = 28.dp),
         verticalArrangement = Arrangement.Center,
@@ -52,7 +50,16 @@ fun LoginScreen(viewModel: AuthViewModel) {
         Text("SAPN", style = MaterialTheme.typography.headlineMedium, color = Sapn.Frost)
         Spacer(Modifier.height(6.dp))
         Eyebrow(stringResource(R.string.login_eyebrow))
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(16.dp))
+        // Вход не обязателен — говорим об этом прямо, чтобы владельцы своих нод
+        // не думали, что без аккаунта приложение бесполезно.
+        Text(
+            stringResource(R.string.login_optional_hint),
+            color = Sapn.Mute,
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(28.dp))
 
         Field(state.login, viewModel::onLoginChange, stringResource(R.string.login_field_login))
         Spacer(Modifier.height(12.dp))

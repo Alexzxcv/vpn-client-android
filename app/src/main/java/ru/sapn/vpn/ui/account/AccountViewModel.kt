@@ -68,6 +68,14 @@ class AccountViewModel(
         }
     }
 
+    /**
+     * Сброс после выхода: ViewModel переживает logout, и без очистки при входе
+     * другим аккаунтом на миг показались бы профиль и устройства предыдущего.
+     */
+    fun reset() {
+        _ui.value = AccountUiState()
+    }
+
     fun refreshDevices() {
         viewModelScope.launch {
             repo.devices()

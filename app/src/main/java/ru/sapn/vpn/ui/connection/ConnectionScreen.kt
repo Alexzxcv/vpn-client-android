@@ -69,7 +69,7 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 
 @Composable
-fun ConnectionScreen(viewModel: ConnectionViewModel) {
+fun ConnectionScreen(viewModel: ConnectionViewModel, onSignIn: () -> Unit) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
     val vpnState by viewModel.vpnState.collectAsStateWithLifecycle()
     val vpnError by viewModel.vpnError.collectAsStateWithLifecycle()
@@ -133,7 +133,21 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
                 style = MaterialTheme.typography.titleLarge,
                 color = Sapn.Frost,
             )
-            Text("VPN", style = MaterialTheme.typography.labelLarge, color = Sapn.Faint)
+            // Вход — отдельной кнопкой в шапке. Без него приложение работает
+            // целиком на своих конфигах; вход добавляет ноды SAPN и подписку.
+            if (state.loggedIn) {
+                Text("VPN", style = MaterialTheme.typography.labelLarge, color = Sapn.Faint)
+            } else {
+                Text(
+                    stringResource(R.string.login_sign_in),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Sapn.Ion,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable(onClick = onSignIn)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
         }
 
         Spacer(Modifier.height(8.dp))
@@ -230,24 +244,30 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
 
         Spacer(Modifier.height(24.dp))
 
-        // --- Метрики подписки ---
-        SubscriptionStrip(state.subscription, state.devicesUsed)
+        // Подписка и ноды SAPN существуют только с сессией. Гостю вместо них —
+        // приглашение войти; свои серверы ниже доступны в обоих случаях.
+        if (state.loggedIn) {
+            // --- Метрики подписки ---
+            SubscriptionStrip(state.subscription, state.devicesUsed)
 
-        Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
 
-        // --- Локации ---
-        Eyebrow(stringResource(R.string.connect_section_location), Modifier.fillMaxWidth())
-        Spacer(Modifier.height(10.dp))
-        if (state.locations.isEmpty()) {
-            Text(stringResource(R.string.connect_no_locations), color = Sapn.Mute, style = MaterialTheme.typography.bodySmall)
-        }
-        state.locations.forEach { loc ->
-            LocationRow(
-                loc = loc,
-                selected = loc.id == state.selectedLocationId,
-                onClick = { viewModel.selectLocation(loc.id) },
-            )
-            Spacer(Modifier.height(8.dp))
+            // --- Локации ---
+            Eyebrow(stringResource(R.string.connect_section_location), Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            if (state.locations.isEmpty()) {
+                Text(stringResource(R.string.connect_no_locations), color = Sapn.Mute, style = MaterialTheme.typography.bodySmall)
+            }
+            state.locations.forEach { loc ->
+                LocationRow(
+                    loc = loc,
+                    selected = loc.id == state.selectedLocationId,
+                    onClick = { viewModel.selectLocation(loc.id) },
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+        } else {
+            GuestServersCard(onSignIn = onSignIn)
         }
 
         // --- Свои конфиги (custom VLESS) ---
@@ -301,6 +321,27 @@ fun ConnectionScreen(viewModel: ConnectionViewModel) {
                 showAddDialog = false
             }
         }
+    }
+}
+
+/** Место списка нод SAPN у гостя: коротко объясняем, что даёт вход. */
+@Composable
+private fun GuestServersCard(onSignIn: () -> Unit) {
+    SapnCard(Modifier.fillMaxWidth()) {
+        Eyebrow(stringResource(R.string.connect_section_location))
+        Spacer(Modifier.height(10.dp))
+        Text(
+            stringResource(R.string.connect_guest_servers),
+            color = Sapn.Mute,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(R.string.login_sign_in),
+            color = Sapn.Ion,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.clickable(onClick = onSignIn),
+        )
     }
 }
 

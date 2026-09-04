@@ -13,10 +13,12 @@
     <string name="login_field_password">Пароль</string>
     <string name="login_sign_in">Войти</string>
     <string name="login_create_account">Создать аккаунт</string>
+    <string name="login_optional_hint">Вход не обязателен: он открывает серверы SAPN и подписку. Свои конфиги работают без аккаунта.</string>
 
     <!-- Bottom navigation -->
     <string name="nav_connect">Подключение</string>
     <string name="nav_account">Аккаунт</string>
+    <string name="nav_sign_in">Вход</string>
     <string name="nav_settings">Настройки</string>
 
     <!-- Connection screen -->
@@ -25,8 +27,10 @@
     <string name="connect_update_now">Обновить</string>
     <string name="connect_ping_ms">   ·   %1$d ms</string>
     <string name="connect_error_prefix">Ошибка: %1$s</string>
+    <string name="connect_error_sign_in_required">Войдите, чтобы подключаться к серверам SAPN</string>
     <string name="connect_section_location">Локация</string>
     <string name="connect_no_locations">Нет доступных локаций</string>
+    <string name="connect_guest_servers">Войдите, чтобы видеть онлайн-серверы SAPN и свою подписку.</string>
     <string name="connect_section_custom">Свои конфиги</string>
     <string name="connect_add">+ Добавить</string>
     <string name="connect_custom_hint">Вставьте свою vless:// ссылку, чтобы подключаться к своему серверу.</string>

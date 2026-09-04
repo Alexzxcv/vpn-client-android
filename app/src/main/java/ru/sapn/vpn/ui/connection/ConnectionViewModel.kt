@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.sapn.vpn.BuildConfig
@@ -25,6 +26,7 @@ import ru.sapn.vpn.domain.model.CustomServer
 import ru.sapn.vpn.domain.model.Location
 import ru.sapn.vpn.domain.model.Subscription
 import ru.sapn.vpn.domain.model.VlessConfig
+import ru.sapn.vpn.domain.repository.AuthRepository
 import ru.sapn.vpn.domain.repository.VpnRepository
 import ru.sapn.vpn.domain.update.AppUpdate
 import ru.sapn.vpn.domain.update.UpdateRepository
@@ -38,6 +40,8 @@ import java.util.UUID
 
 data class ConnectionUiState(
     val loading: Boolean = false,
+    /** Есть ли сессия. Гостю доступны только свои серверы, ноды SAPN — нет. */
+    val loggedIn: Boolean = false,
     val subscription: Subscription? = null,
     val locations: List<Location> = emptyList(),
     val customServers: List<CustomServer> = emptyList(),
@@ -58,10 +62,15 @@ data class ConnectionUiState(
  *
  * Поддерживает два источника серверов: ноды подписки (через бэкенд) и свои
  * VLESS-конфиги (локально, без бэкенда; id вида "custom:<uuid>").
+ *
+ * Авторизация не обязательна: без сессии экран работает целиком на своих
+ * конфигах, бэкенд не дёргается вообще. Появилась сессия — подтягиваются ноды
+ * SAPN и подписка; пропала — исчезают обратно.
  */
 class ConnectionViewModel(
     app: Application,
     private val vpnRepository: VpnRepository,
+    private val authRepository: AuthRepository,
     private val updateRepository: UpdateRepository,
     private val customServerStore: CustomServerStore,
     private val okHttp: OkHttpClient,
@@ -93,7 +102,22 @@ class ConnectionViewModel(
     private var lastUpdateCheckMs = 0L
     private var customPingJob: Job? = null
 
+    // Предыдущее состояние сессии: нужно, чтобы отличить вход/выход от первого
+    // снимка при старте (на нём экран грузится сам через load()).
+    private var prevLoggedIn: Boolean? = null
+
     init {
+        // Вход/выход без перезапуска приложения: логин подтягивает ноды и подписку,
+        // выход — убирает их и оставляет только свои серверы.
+        viewModelScope.launch {
+            authRepository.isLoggedIn.collect { logged ->
+                val prev = prevLoggedIn
+                prevLoggedIn = logged
+                if (prev == null || prev == logged) return@collect
+                if (logged) load() else onSignedOut()
+            }
+        }
+
         // Пинг кастомной ноды. У кастомных нет backend-латентности, меряем сами —
         // но ТОЛЬКО когда туннель НЕ поднят: при активном VPN TCP-проба завершается
         // локально в userspace-стеке (gvisor) и даёт ложный ~1ms, а не реальный RTT
@@ -187,6 +211,21 @@ class ConnectionViewModel(
                 selectedLocationId = _ui.value.selectedLocationId ?: customMatch,
             )
 
+            // Гость: бэкенд не трогаем вообще — ни подписки, ни локаций. Выбор
+            // оставляем только среди своих серверов.
+            if (!authRepository.isLoggedIn.first()) {
+                _ui.value = _ui.value.copy(
+                    loading = false,
+                    loggedIn = false,
+                    subscription = null,
+                    locations = emptyList(),
+                    devicesUsed = 0,
+                    selectedLocationId = _ui.value.selectedLocationId?.takeIf { isCustom(it) }
+                        ?: customs.firstOrNull()?.let { CUSTOM_PREFIX + it.id },
+                )
+                return@launch
+            }
+
             val sub = vpnRepository.subscription().getOrNull()
             val used = vpnRepository.devicesUsed().getOrNull() ?: 0
             vpnRepository.locations()
@@ -199,6 +238,7 @@ class ConnectionViewModel(
                         ?: customs.firstOrNull()?.let { CUSTOM_PREFIX + it.id }
                     _ui.value = _ui.value.copy(
                         loading = false,
+                        loggedIn = true,
                         subscription = sub,
                         devicesUsed = used,
                         locations = locs,
@@ -211,6 +251,7 @@ class ConnectionViewModel(
                         ?: customs.firstOrNull()?.let { CUSTOM_PREFIX + it.id }
                     _ui.value = _ui.value.copy(
                         loading = false,
+                        loggedIn = true,
                         subscription = sub,
                         devicesUsed = used,
                         selectedLocationId = selected,
@@ -232,11 +273,34 @@ class ConnectionViewModel(
      * оставляем прежние значения.
      */
     suspend fun refreshUsage() {
+        // Гостю обновлять нечего: подписка и устройства существуют только с сессией.
+        if (!_ui.value.loggedIn) return
         val sub = vpnRepository.subscription().getOrNull()
         val used = vpnRepository.devicesUsed().getOrNull()
         _ui.value = _ui.value.copy(
             subscription = sub ?: _ui.value.subscription,
             devicesUsed = used ?: _ui.value.devicesUsed,
+        )
+    }
+
+    /**
+     * Выход из аккаунта. Убираем всё, что живёт только с сессией, и гасим туннель,
+     * если он поднят на ноде SAPN: без токена её credential не перевыпустить, он
+     * протухнет и молча оборвёт интернет. Свои серверы не трогаем.
+     */
+    private fun onSignedOut() {
+        val sel = _ui.value.selectedLocationId
+        if (!isCustom(sel) && VpnController.state.value != VpnState.DISCONNECTED) {
+            disconnect()
+        }
+        _ui.value = _ui.value.copy(
+            loggedIn = false,
+            subscription = null,
+            locations = emptyList(),
+            devicesUsed = 0,
+            error = null,
+            selectedLocationId = sel?.takeIf { isCustom(it) }
+                ?: _ui.value.customServers.firstOrNull()?.let { CUSTOM_PREFIX + it.id },
         )
     }
 
@@ -372,6 +436,11 @@ class ConnectionViewModel(
             _ui.value = _ui.value.copy(error = null, needsVpnPermission = true)
             return
         }
+        // Нода SAPN требует сессии. До входа доступны только свои серверы.
+        if (!_ui.value.loggedIn) {
+            _ui.value = _ui.value.copy(error = str(R.string.connect_error_sign_in_required))
+            return
+        }
         viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, error = null)
             val bind = vpnRepository.registerDevice()
@@ -439,12 +508,13 @@ class ConnectionViewModel(
     class Factory(
         private val app: Application,
         private val vpnRepository: VpnRepository,
+        private val authRepository: AuthRepository,
         private val updateRepository: UpdateRepository,
         private val customServerStore: CustomServerStore,
         private val okHttp: OkHttpClient,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            ConnectionViewModel(app, vpnRepository, updateRepository, customServerStore, okHttp) as T
+            ConnectionViewModel(app, vpnRepository, authRepository, updateRepository, customServerStore, okHttp) as T
     }
 }

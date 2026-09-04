@@ -93,6 +93,14 @@ class VpnTileService : TileService() {
                 }
             }
 
+            // Ноды SAPN живут только с сессией: гостю плитка ничего не поднимет,
+            // открываем приложение — там он выберет свой сервер.
+            if (container.tokenStore.accessToken().isNullOrBlank()) {
+                VpnController.updateState(VpnState.DISCONNECTED)
+                openAppToConnect()
+                return@launch
+            }
+
             // Backend: свежий конфиг последней выбранной ноды (lastId), иначе лучшей.
             val serverId = lastId?.takeIf { it.isNotBlank() && !it.startsWith("custom:") }
             container.vpnRepository.fetchConfig(serverId)

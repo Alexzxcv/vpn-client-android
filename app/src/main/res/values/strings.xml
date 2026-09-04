@@ -13,10 +13,12 @@
     <string name="login_field_password">Password</string>
     <string name="login_sign_in">Sign in</string>
     <string name="login_create_account">Create account</string>
+    <string name="login_optional_hint">Signing in is optional: it unlocks SAPN servers and your subscription. Your own configs work without an account.</string>
 
     <!-- Bottom navigation -->
     <string name="nav_connect">Connect</string>
     <string name="nav_account">Account</string>
+    <string name="nav_sign_in">Sign in</string>
     <string name="nav_settings">Settings</string>
 
     <!-- Connection screen -->
@@ -25,8 +27,10 @@
     <string name="connect_update_now">Update</string>
     <string name="connect_ping_ms">   ·   %1$d ms</string>
     <string name="connect_error_prefix">Error: %1$s</string>
+    <string name="connect_error_sign_in_required">Sign in to connect to SAPN servers</string>
     <string name="connect_section_location">Location</string>
     <string name="connect_no_locations">No locations available</string>
+    <string name="connect_guest_servers">Sign in to see online SAPN servers and your subscription.</string>
     <string name="connect_section_custom">Custom configs</string>
     <string name="connect_add">+ Add</string>
     <string name="connect_custom_hint">Paste your own vless:// link to connect to your own server.</string>
