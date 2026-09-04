@@ -1,6 +1,7 @@
 package ru.sapn.vpn.vpn.libbox
 
 import android.net.ConnectivityManager
+import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.VpnService
@@ -25,10 +26,14 @@ import java.net.NetworkInterface as JavaInterface
  * текущей сети (ConnectivityManager). Без этого sing-box считает, что подложки
  * нет, и дропает весь исходящий трафик («подключено, но интернета нет»).
  * protect() ([autoDetectInterfaceControl]) выводит сокеты движка из tun.
+ *
+ * [onDefaultNetworkChanged] дёргается, когда подложка реально сменилась
+ * (mobile ↔ wi-fi) — движку нужно порвать соединения на умершем интерфейсе.
  */
 class AndroidPlatformInterface(
     private val service: VpnService,
     private val newBuilder: () -> VpnService.Builder,
+    private val onDefaultNetworkChanged: (Network?) -> Unit = {},
 ) : PlatformInterface {
 
     @Volatile
@@ -36,6 +41,15 @@ class AndroidPlatformInterface(
 
     private var connectivity: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    // Сеть и интерфейс, о которых мы последний раз сказали sing-box. По ним
+    // отличаем реальную смену подложки от потока capabilities-событий и
+    // понимаем, наша ли сеть отвалилась в onLost.
+    @Volatile
+    private var currentNetwork: Network? = null
+
+    @Volatile
+    private var currentInterface: String = ""
 
     override fun openTun(options: TunOptions): Int {
         val builder = newBuilder()
@@ -119,8 +133,24 @@ class AndroidPlatformInterface(
             override fun onAvailable(network: Network) = pushDefault(cm, network, listener)
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) =
                 pushDefault(cm, network, listener)
+            // Смена имени/индекса интерфейса без смены самой сети — тоже повод
+            // обновить подложку (иначе sing-box шлёт трафик в мёртвый интерфейс).
+            override fun onLinkPropertiesChanged(network: Network, props: LinkProperties) =
+                pushDefault(cm, network, listener)
+
             override fun onLost(network: Network) {
-                runCatching { listener.updateDefaultInterface("", -1, false, false) }
+                // НЕ гасим подложку вслепую. При переходе mobile → wi-fi система
+                // сначала присылает onAvailable(wi-fi) и только потом onLost по
+                // старой мобильной сети. Безусловный updateDefaultInterface("")
+                // здесь затирал уже новую, рабочую сеть: туннель оставался
+                // «подключён», но трафик стоял до ручного переподключения.
+                if (network != currentNetwork) return
+                val active = cm.activeNetwork
+                if (active != null && active != network) {
+                    pushDefault(cm, active, listener)
+                } else {
+                    pushNone(listener)
+                }
             }
         }
         networkCallback = cb
@@ -137,15 +167,36 @@ class AndroidPlatformInterface(
             val index = JavaInterface.getByName(name)?.index ?: 0
             val caps = cm.getNetworkCapabilities(network)
             val expensive = caps != null && !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+            val switched = name != currentInterface
+            currentNetwork = network
+            currentInterface = name
             listener.updateDefaultInterface(name, index, expensive, false)
-            Log.i(TAG, "default interface -> $name#$index expensive=$expensive")
+            if (switched) {
+                Log.i(TAG, "default interface -> $name#$index expensive=$expensive")
+                onDefaultNetworkChanged(network)
+            }
         }
     }
+
+    /** Подложки нет вообще (все сети отвалились). */
+    private fun pushNone(listener: InterfaceUpdateListener) {
+        if (currentInterface.isEmpty()) return
+        currentNetwork = null
+        currentInterface = ""
+        runCatching { listener.updateDefaultInterface("", -1, false, false) }
+        Log.i(TAG, "default interface lost")
+        onDefaultNetworkChanged(null)
+    }
+
+    /** Текущая подложка — движку, чтобы выставить её сразу после старта. */
+    fun currentNetwork(): Network? = currentNetwork
 
     override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener?) {
         networkCallback?.let { cb -> runCatching { connectivity?.unregisterNetworkCallback(cb) } }
         networkCallback = null
         connectivity = null
+        currentNetwork = null
+        currentInterface = ""
     }
 
     /** Перечисляем сетевые интерфейсы для sing-box (имя/индекс/адреса/флаги). */
