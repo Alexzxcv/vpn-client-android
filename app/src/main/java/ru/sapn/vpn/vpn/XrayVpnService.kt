@@ -14,7 +14,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import ru.sapn.vpn.R
 import ru.sapn.vpn.SapnApp
 import ru.sapn.vpn.data.local.LastConnectionStore
@@ -34,6 +35,12 @@ import java.time.Instant
  *     (libbox.PlatformInterface.openTun) и заворачивает трафик.
  *  3. ACTION_DISCONNECT / onDestroy останавливают движок.
  *
+ * ВАЖНО: onStartCommand приходит на MAIN-потоке, а старт/остановка sing-box и
+ * чтение DataStore занимают секунды. Поэтому на main остаётся только
+ * startForeground, всё остальное уходит в [serviceScope] под [tunnelMutex].
+ * Раньше здесь был runBlocking прямо из onStartCommand — он намертво вешал UI
+ * (ANR «приложение не отвечает») при переключении серверов.
+ *
  * START_NOT_STICKY: если процесс умрёт, система НЕ перезапускает сервис с тем же
  * intent (иначе при сбое движка получался цикл рестартов).
  */
@@ -49,46 +56,58 @@ class XrayVpnService : VpnService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var refreshJob: Job? = null
 
+    // Старт и остановка движка — строго по очереди: подряд идущие ACTION_CONNECT
+    // (быстрое переключение нод) не должны запускать sing-box параллельно.
+    private val tunnelMutex = Mutex()
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_DISCONNECT -> disconnect()
             ACTION_CONNECT -> startTunnel(VpnController.consumePendingConfig())
-            else -> {
-                // Always-on VPN / системный старт без UI: поднимаем последний конфиг.
-                val cfg = runCatching { runBlocking { lastConnStore.get() } }.getOrNull()
-                startTunnel(cfg)
-            }
+            // Always-on VPN / системный старт без UI: поднимаем последний конфиг.
+            // Читаем его уже в фоне — DataStore на main-потоке трогать нельзя.
+            else -> startTunnel(config = null, fallBackToLastSaved = true)
         }
         return START_NOT_STICKY
     }
 
-    private fun startTunnel(config: VlessConfig?) {
-        if (config == null) {
-            Log.w(TAG, "startTunnel: no config")
-            VpnController.fail(getString(R.string.vpn_error_no_config))
-            stopSelf()
-            return
-        }
-
+    /**
+     * Поднимает туннель. На main-потоке — только startForeground (его система
+     * требует сразу), вся тяжёлая работа уходит в [serviceScope].
+     */
+    private fun startTunnel(config: VlessConfig?, fallBackToLastSaved: Boolean = false) {
         VpnController.updateState(VpnState.CONNECTING)
         startForeground(NOTIF_ID, buildNotification())
 
-        try {
-            // Перед стартом гасим возможный предыдущий туннель — это делает повторный
-            // ACTION_CONNECT (смена ноды) бесшовным переподключением.
-            runCatching { engine.stop() }
-            val settings = runBlocking { SettingsStore(applicationContext).get() }
-            engine.start(config, settings)
-            // Сохраняем конфиг для Always-on (поднять туннель без UI).
-            runCatching { runBlocking { lastConnStore.save(config) } }
-            VpnController.updateState(VpnState.CONNECTED)
-            scheduleRefresh(config)
-        } catch (t: Throwable) {
-            Log.e(TAG, "connect failed", t)
-            VpnController.fail(t.message ?: t.javaClass.simpleName)
-            runCatching { engine.stop() }
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+        serviceScope.launch {
+            tunnelMutex.withLock {
+                val cfg = config
+                    ?: if (fallBackToLastSaved) runCatching { lastConnStore.get() }.getOrNull() else null
+                if (cfg == null) {
+                    Log.w(TAG, "startTunnel: no config")
+                    VpnController.fail(getString(R.string.vpn_error_no_config))
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return@withLock
+                }
+                try {
+                    // Перед стартом гасим возможный предыдущий туннель — это делает
+                    // повторный ACTION_CONNECT (смена ноды) бесшовным переподключением.
+                    runCatching { engine.stop() }
+                    val settings = SettingsStore(applicationContext).get()
+                    engine.start(cfg, settings)
+                    // Сохраняем конфиг для Always-on (поднять туннель без UI).
+                    runCatching { lastConnStore.save(cfg) }
+                    VpnController.updateState(VpnState.CONNECTED)
+                    scheduleRefresh(cfg)
+                } catch (t: Throwable) {
+                    Log.e(TAG, "connect failed", t)
+                    VpnController.fail(t.message ?: t.javaClass.simpleName)
+                    runCatching { engine.stop() }
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            }
         }
     }
 
@@ -136,10 +155,13 @@ class XrayVpnService : VpnService() {
 
     private fun disconnect() {
         refreshJob?.cancel()
-        runCatching { engine.stop() }
+        // Состояние и уведомление снимаем сразу: UI не должен ждать движок.
         VpnController.updateState(VpnState.DISCONNECTED)
         stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        serviceScope.launch {
+            tunnelMutex.withLock { runCatching { engine.stop() } }
+            stopSelf()
+        }
     }
 
     override fun onRevoke() {

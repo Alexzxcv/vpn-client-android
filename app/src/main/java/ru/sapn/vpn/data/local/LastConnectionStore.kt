@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -32,33 +34,42 @@ private data class LastConfigEntity(
  */
 class LastConnectionStore(private val context: Context) {
 
+    // DataStore выполняет тело edit{} в контексте вызывающей корутины
+    // (DataStoreImpl.transformAndWrite -> withContext(callerContext)). Вызов из
+    // viewModelScope тянет за собой Dispatchers.Main, и если main-поток занят,
+    // запись не завершается никогда — вместе с ней встаёт актор всего файла.
+    // Поэтому обращения к DataStore здесь всегда уводим на IO.
+
     private companion object {
         val KEY = stringPreferencesKey("config_json")
         val SERVER_KEY = stringPreferencesKey("server_id")
         val json = Json { ignoreUnknownKeys = true }
     }
 
-    suspend fun save(config: VlessConfig) {
+    suspend fun save(config: VlessConfig) = withContext(Dispatchers.IO) {
         val e = LastConfigEntity(
             config.host, config.port, config.uuid, config.security, config.flow,
             config.publicKey, config.shortId, config.sni, config.fingerprint,
         )
         context.lastConnDataStore.edit { it[KEY] = json.encodeToString(e) }
+        Unit
     }
 
     /** Сохраняет id последней выбранной локации ("custom:<id>" или id backend-ноды),
      *  чтобы плитка могла восстановить именно её (для backend — со свежим конфигом). */
-    suspend fun saveServerId(id: String?) {
+    suspend fun saveServerId(id: String?) = withContext(Dispatchers.IO) {
         context.lastConnDataStore.edit {
             if (id.isNullOrBlank()) it.remove(SERVER_KEY) else it[SERVER_KEY] = id
         }
+        Unit
     }
 
-    suspend fun serverId(): String? = context.lastConnDataStore.data.first()[SERVER_KEY]
+    suspend fun serverId(): String? =
+        withContext(Dispatchers.IO) { context.lastConnDataStore.data.first()[SERVER_KEY] }
 
-    suspend fun get(): VlessConfig? {
-        val raw = context.lastConnDataStore.data.first()[KEY] ?: return null
-        return runCatching {
+    suspend fun get(): VlessConfig? = withContext(Dispatchers.IO) {
+        val raw = context.lastConnDataStore.data.first()[KEY] ?: return@withContext null
+        runCatching {
             val e = json.decodeFromString<LastConfigEntity>(raw)
             VlessConfig(e.host, e.port, e.uuid, e.security, e.flow, e.publicKey, e.shortId, e.sni, e.fingerprint)
         }.getOrNull()

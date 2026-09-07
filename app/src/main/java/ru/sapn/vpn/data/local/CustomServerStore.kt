@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -48,6 +50,12 @@ private fun CustomServer.toEntity() = CustomServerEntity(
 /** Хранение пользовательских VLESS-серверов (свои конфиги) в DataStore. */
 class CustomServerStore(private val context: Context) {
 
+    // DataStore выполняет тело edit{} в контексте вызывающей корутины
+    // (DataStoreImpl.transformAndWrite -> withContext(callerContext)). Вызов из
+    // viewModelScope тянет за собой Dispatchers.Main, и если main-поток занят,
+    // запись не завершается никогда — вместе с ней встаёт актор всего файла.
+    // Поэтому обращения к DataStore здесь всегда уводим на IO.
+
     private companion object {
         val KEY = stringPreferencesKey("servers_json")
         val json = Json { ignoreUnknownKeys = true }
@@ -55,7 +63,7 @@ class CustomServerStore(private val context: Context) {
 
     val flow: Flow<List<CustomServer>> = context.customServersDataStore.data.map { decode(it[KEY]) }
 
-    suspend fun list(): List<CustomServer> = flow.first()
+    suspend fun list(): List<CustomServer> = withContext(Dispatchers.IO) { flow.first() }
 
     /** Добавляет сервер с указанным id (UUID генерируется вызывающим). */
     suspend fun add(server: CustomServer) {
@@ -68,10 +76,11 @@ class CustomServerStore(private val context: Context) {
         persist(list().filterNot { it.id == id })
     }
 
-    private suspend fun persist(servers: List<CustomServer>) {
+    private suspend fun persist(servers: List<CustomServer>) = withContext(Dispatchers.IO) {
         val entities: List<CustomServerEntity> = servers.map { it.toEntity() }
         val raw = json.encodeToString(entities)
         context.customServersDataStore.edit { it[KEY] = raw }
+        Unit
     }
 
     private fun decode(raw: String?): List<CustomServer> {
