@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -109,6 +110,9 @@ fun ConnectionScreen(viewModel: ConnectionViewModel, onSignIn: () -> Unit) {
     }
 
     var showAddDialog by remember { mutableStateOf(false) }
+    // Свой сервер, для которого открыт диалог подтверждения удаления.
+    var pendingDelete by remember { mutableStateOf<CustomServer?>(null) }
+    val shareTitle = stringResource(R.string.custom_share_title)
 
     val connected = vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING
     val selectedLoc = state.locations.firstOrNull { it.id == state.selectedLocationId }
@@ -301,10 +305,43 @@ fun ConnectionScreen(viewModel: ConnectionViewModel, onSignIn: () -> Unit) {
                 // Пинг показываем только у сервера текущей сессии (к нему подключены).
                 pingMs = if (isSel && vpnState == VpnState.CONNECTED) state.customPingMs else 0,
                 onClick = { viewModel.selectLocation("custom:${cs.id}") },
-                onDelete = { viewModel.removeCustomServer(cs.id) },
+                onShare = {
+                    viewModel.customServerLink(cs.id)?.let { link ->
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, link)
+                        }
+                        runCatching { context.startActivity(Intent.createChooser(send, shareTitle)) }
+                    }
+                },
+                onDelete = { pendingDelete = cs },
             )
             Spacer(Modifier.height(8.dp))
         }
+    }
+
+    // Удаление — только с подтверждением: конфиг хранится лишь в приложении,
+    // случайный тап по корзине терял его безвозвратно.
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            containerColor = Sapn.Slate,
+            titleContentColor = Sapn.Frost,
+            textContentColor = Sapn.Mute,
+            title = { Text(stringResource(R.string.custom_delete_title)) },
+            text = { Text(stringResource(R.string.custom_delete_message, target.name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.removeCustomServer(target.id)
+                    pendingDelete = null
+                }) { Text(stringResource(R.string.custom_delete), color = Sapn.Alert) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.custom_dialog_cancel), color = Sapn.Mute)
+                }
+            },
+        )
     }
 
     if (showAddDialog) {
@@ -453,7 +490,14 @@ private fun LocationRow(loc: Location, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun CustomRow(server: CustomServer, selected: Boolean, pingMs: Int, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun CustomRow(
+    server: CustomServer,
+    selected: Boolean,
+    pingMs: Int,
+    onClick: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val border = if (selected) Sapn.Ion else Sapn.Hairline
     val bg = if (selected) Sapn.Ion.copy(alpha = 0.07f) else Sapn.Slate
     Surface(
@@ -480,10 +524,24 @@ private fun CustomRow(server: CustomServer, selected: Boolean, pingMs: Int, onCl
                 )
             }
             Icon(
+                Icons.Outlined.Share,
+                contentDescription = stringResource(R.string.custom_share),
+                tint = Sapn.Faint,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onShare)
+                    .padding(8.dp),
+            )
+            Icon(
                 Icons.Outlined.Delete,
                 contentDescription = stringResource(R.string.custom_delete),
                 tint = Sapn.Faint,
-                modifier = Modifier.size(20.dp).clickable(onClick = onDelete),
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onDelete)
+                    .padding(8.dp),
             )
         }
     }

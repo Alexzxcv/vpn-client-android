@@ -57,6 +57,10 @@
     <string name="custom_dialog_add">Добавить</string>
     <string name="custom_dialog_cancel">Отмена</string>
     <string name="custom_delete">Удалить</string>
+    <string name="custom_share">Поделиться</string>
+    <string name="custom_share_title">Поделиться конфигом</string>
+    <string name="custom_delete_title">Удалить конфиг?</string>
+    <string name="custom_delete_message">«%1$s» будет удалён из приложения. Сам сервер это не затрагивает — его можно добавить снова по ссылке.</string>
 
     <!-- Account screen -->
     <string name="account_title">Аккаунт</string>

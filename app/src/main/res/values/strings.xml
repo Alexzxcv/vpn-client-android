@@ -57,6 +57,10 @@
     <string name="custom_dialog_add">Add</string>
     <string name="custom_dialog_cancel">Cancel</string>
     <string name="custom_delete">Delete</string>
+    <string name="custom_share">Share</string>
+    <string name="custom_share_title">Share config</string>
+    <string name="custom_delete_title">Delete this config?</string>
+    <string name="custom_delete_message">“%1$s” will be removed from the app. The server itself is not affected — you can add it again from the link.</string>
 
     <!-- Account screen -->
     <string name="account_title">Account</string>

@@ -380,13 +380,33 @@ class ConnectionViewModel(
         _ui.value = _ui.value.copy(customError = null)
     }
 
+    /** vless://-ссылка своего сервера — для кнопки «Поделиться». */
+    fun customServerLink(id: String): String? =
+        _ui.value.customServers.find { it.id == id }
+            ?.let { VlessLinkParser.build(it.name, it.config) }
+
     fun removeCustomServer(id: String) {
         viewModelScope.launch {
-            customServerStore.remove(id)
-            if (_ui.value.selectedLocationId == CUSTOM_PREFIX + id) {
-                _ui.value = _ui.value.copy(selectedLocationId = _ui.value.locations.firstOrNull()?.id)
+            val removed = CUSTOM_PREFIX + id
+            val wasSelected = _ui.value.selectedLocationId == removed
+            // Удаляют сервер, на котором сейчас туннель — гасим его: конфига больше
+            // нет, переподключиться к нему уже нельзя.
+            if (wasSelected && VpnController.state.value != VpnState.DISCONNECTED) {
+                disconnect()
             }
-            loadCustomServers()
+            // И забываем его в LastConnectionStore, иначе плитка/always-on поднимут
+            // сервер, которого в списке уже нет.
+            if (lastConnectionStore.serverId() == removed) lastConnectionStore.saveServerId(null)
+
+            customServerStore.remove(id)
+            val remaining = customServerStore.list()
+            val selected = if (wasSelected) {
+                _ui.value.locations.firstOrNull()?.id
+                    ?: remaining.firstOrNull()?.let { CUSTOM_PREFIX + it.id }
+            } else {
+                _ui.value.selectedLocationId
+            }
+            _ui.value = _ui.value.copy(customServers = remaining, selectedLocationId = selected)
         }
     }
 
